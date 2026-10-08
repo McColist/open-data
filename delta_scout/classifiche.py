@@ -37,7 +37,7 @@ SUM = ["gol", "gol_np", "assist", "xg", "npxg", "xa", "xt", "xg_chain", "sca", "
 
 # (chiave, etichetta, tipo) - tipo: p90 = per 90 minuti, tot = totale, pct = percentuale, diff = differenza totale
 METRICS = [
-    ("gol_p90", "Gol", "p90"), ("npxg_p90", "xG senza rigori", "p90"), ("finalizzazione", "Gol − xG (senza rigori)", "diff"),
+    ("voto_medio", "Voto medio Delta Scout", "avg"), ("gol_p90", "Gol", "p90"), ("npxg_p90", "xG senza rigori", "p90"), ("finalizzazione", "Gol − xG (senza rigori)", "diff"),
     ("conversione_pct", "Tiri trasformati in gol %", "pct"), ("xa_p90", "xA (assist attesi)", "p90"), ("assist_p90", "Assist", "p90"),
     ("xg_xa_p90", "xG + xA", "p90"), ("xt_p90", "xT – minaccia creata", "p90"), ("xg_chain_p90", "xG chain", "p90"),
     ("sca_p90", "Azioni che portano al tiro (SCA)", "p90"), ("passaggi_chiave_p90", "Passaggi chiave", "p90"),
@@ -74,6 +74,12 @@ def main():
         with open(OUT / "anagrafica_giocatori.csv", encoding="utf-8") as fh:
             anag = {r["player_id"]: r for r in csv.DictReader(fh) if r["reep_id"]}
 
+    voti = defaultdict(list)
+    if (OUT / "voti.csv").exists():
+        with open(OUT / "voti.csv", encoding="utf-8") as fh:
+            for r in csv.DictReader(fh):
+                if r["voto"]:
+                    voti[r["player_id"]].append(float(r["voto"]))
     P = defaultdict(lambda: defaultdict(float))
     info, roles, teams, comps, years = {}, defaultdict(Counter), defaultdict(Counter), defaultdict(Counter), defaultdict(list)
     with open(OUT / "giocatori.csv", encoding="utf-8") as fh:
@@ -107,6 +113,7 @@ def main():
         for k in SUM:
             r[k] = round(p[k], 3) if not float(p[k]).is_integer() else int(p[k])
             r[f"{k}_p90"] = round(p[k] / m * 90, 3)
+        r["voto_medio"] = round(sum(voti[pid]) / len(voti[pid]), 2) if len(voti[pid]) >= 5 else None
         r["xg_xa_p90"] = round((p["xg"] + p["xa"]) / m * 90, 3)
         r["azioni_difensive_p90"] = round((p["contrasti_vinti"] + p["intercetti"] + p["recuperi"]) / m * 90, 3)
         r["finalizzazione"] = round(p["gol_np"] - p["npxg"], 2)
@@ -144,12 +151,15 @@ def main():
     page = TEMPLATE.replace("__DATA__", json.dumps({"keep": keep, "metrics": METRICS, "lower": sorted(LOWER_BETTER),
                                                     "pctmin": {k: v[1] for k, v in PCT_MIN.items()}, "rows": data},
                                                    ensure_ascii=False, separators=(",", ":")))
+    from report import FAVICON, HEAD_EXTRA, PROTECT_JS, brand_bar, footer
+    page = (page.replace("__HEAD__", HEAD_EXTRA).replace("__BRAND__", brand_bar('<a href="index.html">Report partite</a>'))
+            .replace("__FOOTER__", footer()).replace("__PROTECT__", PROTECT_JS))
     (HERE / "classifiche.html").write_text(page, encoding="utf-8")
     print(f"{len(rows)} giocatori in output/carriere_giocatori.csv; {len(data)} con almeno 450' in classifiche.html")
 
 
 TEMPLATE = r"""<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Delta Scout – Classifiche</title><style>
+<title>Delta Scout – Classifiche</title>__HEAD__<style>
 :root{--bg:#f6f7f9;--card:#fff;--ink:#1b1f24;--mute:#66707a;--line:#e3e6ea;--acc:#2a6fdb;--bar:#dbe6fa}
 @media (prefers-color-scheme:dark){:root{--bg:#14171a;--card:#1d2125;--ink:#e8eaed;--mute:#9aa3ad;--line:#30363d;--acc:#6aa0ff;--bar:#25344d}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
@@ -164,8 +174,12 @@ th{text-align:right;color:var(--mute);font-weight:600;padding:5px 6px;border-bot
 td{text-align:right;padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}th.l,td.l{text-align:left}td.w{white-space:normal;min-width:160px;max-width:240px}
 td.v{font-weight:700;position:relative;min-width:110px}td.v span{position:relative}td.v i{position:absolute;left:0;top:4px;bottom:4px;background:var(--bar);border-radius:3px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.grid h3{font-size:14px;margin:0 0 6px}.grid ol{margin:0;padding-left:20px}.grid li{margin:2px 0}
-</style></head><body><main>
-<h1>Delta Scout – Classifiche di tutti i tempi</h1>
+.topnav{display:flex;gap:14px;align-items:center;border-bottom:1px solid var(--line);padding:0 0 10px;margin-bottom:14px;font-size:13px}
+.topnav a{color:var(--mute);text-decoration:none}.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--ink)!important}
+.foot{border-top:1px solid var(--line);margin-top:24px;padding-top:12px;font-size:12px;color:var(--mute);display:grid;gap:8px}
+.foot .sb{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.foot img{background:#fff;border-radius:4px;padding:2px 4px}
+</style></head><body><main>__BRAND__
+<h1>Classifiche di tutti i tempi</h1>
 <p class="sub">Tutte le partite StatsBomb Open Data del dataset (1958–2025). Valori per 90 minuti salvo dove indicato.
 Attenzione: il dataset è sbilanciato (molto Barcellona/Messi in Liga, Arsenal 2003/04, Leverkusen 2023/24, poche partite prima del 2000):
 le classifiche descrivono questi dati, non l'intera storia del calcio. Le percentuali richiedono un numero minimo di tentativi.</p>
@@ -178,7 +192,7 @@ le classifiche descrivono questi dati, non l'intera storia del calcio. Le percen
 </div><div class="chips" id="roles" style="margin-top:12px"></div></div>
 <div class="card"><h2 id="h" style="font-size:17px;margin:0 0 10px"></h2><div class="scroll"><table id="t"></table></div><p class="sub" id="n"></p></div>
 <div class="card"><h2 style="font-size:17px;margin:0 0 10px">Podi per ruolo <span class="sub">(sesso e minuti minimi come sopra)</span></h2><div class="grid" id="pod"></div></div>
-<p class="sub">Dati: StatsBomb Open Data · anagrafica: Reep (CC0) · generato da Delta Scout.</p>
+__FOOTER__
 </main><script>
 const D=__DATA__;const K=D.keep,M=D.metrics,ix=k=>K.indexOf(k),mi=k=>K.length+M.findIndex(m=>m[0]===k);
 const ROLES=["Tutti","Attaccante","Trequartista / Ala","Centrocampista","Mediano","Terzino","Difensore centrale","Portiere"];
@@ -187,13 +201,13 @@ const PODI={"Attaccante":["npxg_p90","finalizzazione","xt_p90","tocchi_in_area_p
 "Terzino":["xt_p90","cross_riusciti_p90","conduzioni_progressive_p90","azioni_difensive_p90"],"Difensore centrale":["azioni_difensive_p90","aerei_vinti_p90","passaggi_progressivi_p90","precisione_passaggi_pct"],
 "Portiere":["parate_pct","parate_p90","uscite_p90","lanci_lunghi_pct"]};
 let role="Tutti";const $=id=>document.getElementById(id);
-M.forEach(m=>{const o=document.createElement("option");o.value=m[0];o.textContent=m[1]+(m[2]==="p90"?" (per 90')":m[2]==="diff"?" (totale)":"");$("m").appendChild(o)});
+M.forEach(m=>{const o=document.createElement("option");o.value=m[0];o.textContent=m[1]+(m[2]==="p90"?" (per 90')":m[2]==="diff"?" (totale)":m[2]==="avg"?" (media partite)":"");$("m").appendChild(o)});
 $("m").value="xt_p90";
 ROLES.forEach(r=>{const b=document.createElement("button");b.textContent=r;b.className=r===role?"on":"";b.onclick=()=>{role=r;[...$("roles").children].forEach(x=>x.className=x===b?"on":"");draw()};$("roles").appendChild(b)});
 ["m","s","min","top","q"].forEach(id=>$(id).addEventListener("input",draw));
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const name=r=>r[ix("soprannome")]||r[ix("giocatore")];
-const fmt=(v,t)=>v==null?"–":t==="pct"?v.toFixed(1)+"%":t==="diff"?(v>0?"+":"")+v.toFixed(2):Math.abs(v)>=100?v.toFixed(0):v.toFixed(2);
+const fmt=(v,t)=>v==null?"–":t==="avg"?v.toFixed(2):t==="pct"?v.toFixed(1)+"%":t==="diff"?(v>0?"+":"")+v.toFixed(2):Math.abs(v)>=100?v.toFixed(0):v.toFixed(2);
 function age(r){const d=r[ix("data_nascita")];if(!d)return"";const p=r[ix("periodo")].split("–");return`${p[0]-d.slice(0,4)}${p[1]?"–"+(p[1]-d.slice(0,4)):""}`}
 function pool(key,rl){const s=$("s").value,mn=+$("min").value,q=$("q").value.toLowerCase(),j=mi(key),low=D.lower.includes(key);
 return D.rows.filter(r=>r[ix("sesso")]===s&&r[ix("minuti")]>=mn&&r[j]!=null&&(rl==="Tutti"||r[ix("ruolo")]===rl)&&
@@ -204,12 +218,12 @@ $("t").innerHTML=`<tr><th>#</th><th class="l">Giocatore</th><th class="l">Ruolo<
 top.map((r,i)=>{const tm=r[ix("transfermarkt")],nm=esc(name(r));return`<tr><td>${i+1}</td><td class="l">${tm?`<a href="${esc(tm)}" target="_blank" rel="noopener">${nm}</a>`:nm} <span class="sub">${esc(r[ix("nazionalita")])}</span></td>
 <td class="l">${esc(r[ix("ruolo")])}</td><td class="l sub w">${esc(r[ix("squadre")])}</td><td>${esc(r[ix("periodo")])}</td><td>${age(r)}</td><td>${r[ix("partite")]}</td><td>${r[ix("minuti")].toLocaleString("it")}</td>
 <td>${r[ix("gol")]}</td><td>${(+r[ix("xg")]).toFixed(1)}</td><td class="v"><i style="width:${(100*Math.abs(r[j])/mx).toFixed(1)}%"></i><span>${fmt(r[j],t)}</span></td></tr>`}).join("");
-$("h").textContent=M.find(m=>m[0]===key)[1]+(t==="p90"?" – per 90 minuti":t==="diff"?" – totale in carriera":"")+(role==="Tutti"?"":" · "+role);
+$("h").textContent=M.find(m=>m[0]===key)[1]+(t==="p90"?" – per 90 minuti":t==="diff"?" – totale in carriera":t==="avg"?" – media delle partite (almeno 5 con voto)":"")+(role==="Tutti"?"":" · "+role);
 $("n").textContent=`${rows.length} giocatori soddisfano i filtri.`+(D.pctmin[key]?` Minimo ${D.pctmin[key]} tentativi per questa percentuale.`:"");
 $("pod").innerHTML=Object.entries(PODI).map(([rl,ks])=>ks.map(k=>{const m=M.find(x=>x[0]===k),jj=mi(k),p=pool(k,rl).slice(0,5);
 return`<div><h3>${esc(rl)} · ${esc(m[1])}</h3><ol>${p.map(r=>`<li>${esc(name(r))} <span class="sub">${fmt(r[jj],m[2])}</span></li>`).join("")||'<li class="sub">nessuno</li>'}</ol></div>`}).join("")).join("")}
 draw();
-</script></body></html>"""
+</script>__PROTECT__</body></html>"""
 
 
 if __name__ == "__main__":

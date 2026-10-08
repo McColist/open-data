@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-label="Delta Scout">
+  <rect width="1200" height="1200" fill="#111214"/>
+  <g fill="none" stroke="#4a6a96" stroke-width="4">
+    <rect x="251" y="375" width="698" height="494"/>
+    <line x1="600" y1="483" x2="600" y2="869"/>
+    <circle cx="600" cy="622" r="54"/>
+  </g>
+  <path d="M118 785 C300 770 380 690 470 525 C540 395 565 330 600 330 C635 330 660 395 730 525 C820 690 900 770 1082 785"
+        fill="none" stroke="#7cc4f2" stroke-width="6" stroke-linecap="round"/>
+  <g stroke="#f4f4f4" stroke-width="20">
+    <line x1="615" y1="462" x2="801" y2="777"/>
+    <line x1="410" y1="805" x2="786" y2="805"/>
+    <line x1="398" y1="778" x2="545" y2="530"/>
+  </g>
+  <polygon points="512,520 576,477 567,552" fill="#f4f4f4"/>
+  <circle cx="600" cy="435" r="30" fill="#111214" stroke="#7cc4f2" stroke-width="17"/>
+  <circle cx="381" cy="805" r="30" fill="#111214" stroke="#f4f4f4" stroke-width="14"/>
+  <circle cx="816" cy="805" r="30" fill="#111214" stroke="#f4f4f4" stroke-width="14"/>
+</svg>

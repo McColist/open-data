@@ -68,12 +68,135 @@ border:1px solid var(--line);background:transparent;color:var(--ink);cursor:poin
 .tl td{padding:3px 6px;border-bottom:1px solid var(--line);vertical-align:top}.tl td.m{width:44px;text-align:right;color:var(--mute)}
 .st td,.st th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right}.st th{color:var(--mute);font-weight:600}.st td:first-child,.st th:first-child{text-align:left}
 .kv{display:flex;flex-wrap:wrap;gap:4px 18px;justify-content:center;margin-top:8px}.legend{font-size:12px;color:var(--mute);margin-top:6px}
+.topnav{position:sticky;top:0;z-index:10;display:flex;gap:4px 14px;align-items:center;flex-wrap:nowrap;overflow-x:auto;
+background:var(--bg);border-bottom:1px solid var(--line);padding:8px 16px;margin:0 -16px 14px;font-size:13px;white-space:nowrap}
+.topnav a{color:var(--mute);text-decoration:none}.topnav a:hover{color:var(--ink)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--ink)!important;margin-right:8px}
+.foot{border-top:1px solid var(--line);margin-top:24px;padding-top:12px;font-size:12px;color:var(--mute);display:grid;gap:8px}
+.foot .sb{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.foot img{background:#fff;border-radius:4px;padding:2px 4px}
+svg{-webkit-user-select:none;user-select:none}.card{scroll-margin-top:60px}
+.flt{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:0 0 10px;font-size:12.5px;color:var(--mute)}
+.flt button{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.flt button.on{background:var(--ink);color:var(--card)}
 .lg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--mute);margin-top:10px;align-items:center}
 .lg span{display:inline-flex;align-items:center;gap:6px}.lg svg{display:inline-block;width:auto;height:12px}
 """
 
 
 ANAG, ELO = {}, {}
+
+
+ROLE_IT = {
+    "Goalkeeper": "Portiere", "Right Back": "Terzino destro", "Right Center Back": "Difensore centrale destro",
+    "Center Back": "Difensore centrale", "Left Center Back": "Difensore centrale sinistro", "Left Back": "Terzino sinistro",
+    "Right Wing Back": "Esterno a tutta fascia destro", "Left Wing Back": "Esterno a tutta fascia sinistro",
+    "Right Defensive Midfield": "Mediano destro", "Center Defensive Midfield": "Mediano", "Left Defensive Midfield": "Mediano sinistro",
+    "Right Midfield": "Esterno destro di centrocampo", "Right Center Midfield": "Mezzala destra", "Center Midfield": "Centrocampista centrale",
+    "Left Center Midfield": "Mezzala sinistra", "Left Midfield": "Esterno sinistro di centrocampo", "Right Wing": "Ala destra",
+    "Right Attacking Midfield": "Trequartista destro", "Center Attacking Midfield": "Trequartista",
+    "Left Attacking Midfield": "Trequartista sinistro", "Left Wing": "Ala sinistra", "Right Center Forward": "Attaccante destro",
+    "Center Forward": "Centravanti", "Left Center Forward": "Attaccante sinistro", "Secondary Striker": "Seconda punta",
+}
+REEP_IT = {
+    "goalkeeper": "Portiere", "centre-back": "Difensore centrale", "left-back": "Terzino sinistro", "right-back": "Terzino destro",
+    "defensive midfield": "Mediano", "central midfield": "Centrocampista centrale", "attacking midfield": "Trequartista",
+    "left midfield": "Esterno sinistro", "right midfield": "Esterno destro", "left winger": "Ala sinistra", "right winger": "Ala destra",
+    "second striker": "Seconda punta", "centre-forward": "Centravanti", "forward": "Attaccante", "defender": "Difensore",
+    "midfielder": "Centrocampista", "defensive midfielder": "Mediano", "winger": "Ala", "full-back": "Terzino",
+    "wing-back": "Esterno a tutta fascia", "striker": "Attaccante", "attacking midfielder": "Trequartista",
+}
+FASI = {"Final": "Finale", "Group Stage": "Fase a gironi", "Round of 16": "Ottavi di finale", "Quarter-finals": "Quarti di finale",
+        "Semi-finals": "Semifinali", "3rd Place Final": "Finale 3° posto", "Regular Season": "Campionato",
+        "Round of 32": "Sedicesimi di finale", "Play-offs": "Play-off"}
+CORPO = {"Right Foot": "Destro", "Left Foot": "Sinistro", "Head": "Testa", "Other": "Altro"}
+MOTIVI = {"(Tactical)": "(scelta tecnica)", "(Injury)": "(infortunio)"}
+
+
+def it_role(r):
+    return ROLE_IT.get(r, r)
+
+
+def it_roles(s):
+    return " → ".join(it_role(x) for x in s.split(" → ")) if s else ""
+
+
+LOGO_INNER = ('<g fill="none" stroke="#4a6a96" stroke-width="4"><rect x="251" y="375" width="698" height="494"/>'
+              '<line x1="600" y1="483" x2="600" y2="869"/><circle cx="600" cy="622" r="54"/></g>'
+              '<path d="M118 785 C300 770 380 690 470 525 C540 395 565 330 600 330 C635 330 660 395 730 525 C820 690 900 770 1082 785" '
+              'fill="none" stroke="#7cc4f2" stroke-width="6" stroke-linecap="round"/><g stroke="#f4f4f4" stroke-width="20">'
+              '<line x1="615" y1="462" x2="801" y2="777"/><line x1="410" y1="805" x2="786" y2="805"/><line x1="398" y1="778" x2="545" y2="530"/></g>'
+              '<polygon points="512,520 576,477 567,552" fill="#f4f4f4"/>'
+              '<circle cx="600" cy="435" r="30" fill="#111214" stroke="#7cc4f2" stroke-width="17"/>'
+              '<circle cx="381" cy="805" r="30" fill="#111214" stroke="#f4f4f4" stroke-width="14"/>'
+              '<circle cx="816" cy="805" r="30" fill="#111214" stroke="#f4f4f4" stroke-width="14"/>')
+LOGO_SYMBOL = f'<svg style="display:none" aria-hidden="true"><symbol id="dslogo" viewBox="0 0 1200 1200">{LOGO_INNER}</symbol></svg>'
+FAVICON = ("data:image/svg+xml," + __import__("urllib.parse").parse.quote(
+    f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="160 220 880 880"><rect x="160" y="220" width="880" height="880" rx="120" fill="#111214"/>{LOGO_INNER}</svg>'))
+YEAR = "2026"
+HEAD_EXTRA = (f'<link rel="icon" href="{FAVICON}"><meta name="copyright" content="© {YEAR} Delta Scout. Tutti i diritti riservati.">'
+              '<meta name="robots" content="noai, noimageai">')
+PROTECT_JS = ("<script>document.addEventListener('contextmenu',function(e){if(e.target.closest('svg'))e.preventDefault()});"
+              "document.addEventListener('dragstart',function(e){if(e.target.closest('svg'))e.preventDefault()});</script>")
+
+
+def brand_bar(nav=""):
+    return (f'{LOGO_SYMBOL}<nav class="topnav"><a class="brand" href="index.html"><svg viewBox="0 0 1200 1200" width="30" height="30">'
+            f'<rect width="1200" height="1200" rx="170" fill="#111214"/><use href="#dslogo" x="-330" y="-380" width="1860" height="1860"/></svg>'
+            f'<span>Delta Scout</span></a>{nav}</nav>')
+
+
+INDEX_NAV = '<a href="classifiche.html">Classifiche di tutti i tempi</a>'
+
+
+def footer():
+    return (f'<footer class="foot"><div><b>© {YEAR} Delta Scout</b> – tutti i diritti riservati. Testi, grafici, indici (voto Delta Scout, '
+            'classifiche) e impaginazione sono opera di Delta Scout: è vietata la riproduzione, anche parziale, senza autorizzazione scritta. '
+            'Le condivisioni devono citare Delta Scout e linkare la pagina originale.</div>'
+            '<div class="sb"><span>Dati evento:</span><img src="statsbomb_logo.png" alt="StatsBomb" height="22"> '
+            '<span>StatsBomb Open Data · anagrafica: Reep (CC0)</span></div></footer>')
+
+
+CAREER, ROLE_AVG, VOTI = {}, {}, {}
+CTX = [("xg", "xG"), ("xa", "xA"), ("xt", "xT"), ("sca", "SCA"), ("passaggi_progressivi", "Pass. progr."),
+       ("conduzioni_progressive", "Cond. progr."), ("dribbling_riusciti", "Dribbling"), ("azioni_difensive", "Az. difensive"),
+       ("pressioni", "Pressioni")]
+
+
+def match_p90(p, k):
+    m = num(p["minuti"])
+    if m < 30:
+        return None
+    v = num(p["contrasti_vinti"]) + num(p["intercetti"]) + num(p["recuperi"]) if k == "azioni_difensive" else num(p.get(k))
+    return v / m * 90
+
+
+def ctx_cell(p, k):
+    v = match_p90(p, k)
+    c = CAREER.get(p["player_id"])
+    if v is None or not c:
+        return "–"
+    car = num(c.get(f"{k}_p90"))
+    d = 1 if max(v, car) >= 10 else 2
+    if car > 0 and v >= 1.5 * car and v - car > 0.05:
+        arrow = '<span style="color:#2f9e44">▲</span>'
+    elif car > 0 and v <= 0.5 * car:
+        arrow = '<span style="color:#e03131">▼</span>'
+    else:
+        arrow = ""
+    return f'<b>{v:.{d}f}</b>{arrow}<span class="sub"> / {car:.{d}f}</span>'
+
+
+def voto_badge(v, size="13px"):
+    if v in (None, ""):
+        return '<span class="sub">s.v.</span>'
+    x = float(v)
+    col = "#1c7ed6" if x >= 8 else "#2f9e44" if x >= 7 else "#94b51f" if x >= 6.5 else "#f08c00" if x >= 6 else "#e03131"
+    return f'<span style="background:{col};color:#fff;border-radius:4px;padding:1px 5px;font-weight:700;font-size:{size}">{x:.1f}</span>'
+
+
+def voto_col(v):
+    x = float(v)
+    return "#1c7ed6" if x >= 8 else "#2f9e44" if x >= 7 else "#94b51f" if x >= 6.5 else "#f08c00" if x >= 6 else "#e03131"
 
 
 def age(p, data):
@@ -116,7 +239,9 @@ def pitch(inner, half=False):
              '<rect x="0" y="0" width="120" height="80"/><line x1="60" y1="0" x2="60" y2="80"/>'
              '<circle cx="60" cy="40" r="10"/><rect x="0" y="18" width="18" height="44"/><rect x="102" y="18" width="18" height="44"/>'
              '<rect x="0" y="30" width="6" height="20"/><rect x="114" y="30" width="6" height="20"/></g>')
-    return f'<svg viewBox="{x0 - 1} -1 {w + 2} 82" role="img">{lines}{inner}</svg>'
+    mark = (f'<use href="#dslogo" x="{x0 + w / 2 - 9}" y="31" width="18" height="18" opacity="0.07"/>'
+            f'<text x="{x0 + w - 1}" y="79" font-size="1.9" fill="var(--mute)" text-anchor="end" opacity="0.8">© Delta Scout</text>')
+    return f'<svg viewBox="{x0 - 1} -1 {w + 2} 82" role="img">{lines}{mark}{inner}</svg>'
 
 
 def shot_map(shots, teams):
@@ -129,7 +254,7 @@ def shot_map(shots, teams):
         r = 0.8 + 4 * num(s["xg"]) ** 0.5
         c = COL[0 if home else 1]
         goal = s["gol"] == "1"
-        tip = f'{s["minuto"]}\' {s["giocatore"]} – xG {f(s["xg"])} – {s["esito"]}'
+        tip = f'{s["minuto"]}\' {s["giocatore"]} – xG {f(s["xg"])} – {ESITI.get(s["esito"], s["esito"])}'
         out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.2f}" fill="{c if goal else "none"}" '
                    f'fill-opacity="{0.9 if goal else 0}" stroke="{c}" stroke-width="0.5"><title>{e(tip)}</title></circle>')
     return pitch("".join(out))
@@ -168,8 +293,68 @@ def xg_timeline(shots, teams):
         c = COL[teams.index(t)]
         svg.append(f'<circle cx="{X(m):.1f}" cy="{Y(v):.1f}" r="4.5" fill="{c}" stroke="var(--card)" stroke-width="1.5">'
                    f'<title>{e(who)} {int(m)}\'</title></circle>')
-    svg.append("</svg>")
+    svg.append(f'<text x="{W - 4}" y="{H - 2}" font-size="9" fill="var(--mute)" text-anchor="end" opacity="0.8">© Delta Scout</text></svg>')
     return "".join(svg)
+
+
+def first_sub(K, team):
+    m = [int(k["minuto"]) for k in K if k["squadra"] == team and k["tipo"] in ("Sostituzione", "Rosso", "Secondo giallo")]
+    return min(m) if m else None
+
+
+def network_until_sub(PS, players, team, K, color):
+    """Rete di passaggi standard: solo fino al primo cambio (o espulsione), posizione media da passaggi e ricezioni."""
+    info = {int(p["player_id"]): p for p in players if p["squadra"] == team}
+    cut = first_sub(K, team)
+    lim = cut if cut is not None else 999
+    pos = defaultdict(lambda: [0.0, 0.0, 0])
+    cnt = defaultdict(int)
+    for q in PS:
+        if q[0] not in info or q[7] >= lim:
+            continue
+        a = pos[q[0]]
+        a[0] += q[2]; a[1] += q[3]; a[2] += 1
+        if q[6] and q[1] in info:
+            b = pos[q[1]]
+            b[0] += q[4]; b[1] += q[5]; b[2] += 1
+            cnt[(q[0], q[1])] += 1
+    pts = {pid: (v[0] / v[2], v[1] / v[2]) for pid, v in pos.items() if v[2] >= 3}
+    es = [(a, b, c) for (a, b), c in cnt.items() if c >= 2 and a in pts and b in pts]
+    if not es:
+        return '<p class="sub">Dati insufficienti.</p>'
+    return render_network(pts, es, info, color,
+                          f"Prima del primo cambio ({cut}')" if cut is not None else "Tutta la partita (nessun cambio)")
+
+
+def render_network(pts, es, info, color, note):
+    mx = max(c for _, _, c in es)
+    vol = defaultdict(int)
+    for a, b, c in es:
+        vol[a] += c
+        vol[b] += c
+    vmax = max(vol.values())
+    out = []
+    for a, b, c in sorted(es, key=lambda x: x[2]):
+        k = c / mx
+        out.append(f'<line x1="{pts[a][0]:.1f}" y1="{pts[a][1]:.1f}" x2="{pts[b][0]:.1f}" y2="{pts[b][1]:.1f}" '
+                   f'stroke="{color}" stroke-opacity="{0.15 + 0.6 * k:.2f}" stroke-width="{0.3 + 1.6 * k:.2f}">'
+                   f'<title>{e(short(info[a]))} → {e(short(info[b]))}: {c}</title></line>')
+    shown = []
+    for pid in sorted(vol, key=lambda x: -vol[x]):
+        p = info[pid]
+        r = 2.3 + 1.9 * vol[pid] / vmax
+        label = p["maglia"] or initials(pitch_name(p))
+        shown.append((p, label, pid))
+        x, y = pts[pid]
+        out.append(f'<g><title>{e(short(p))}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.2f}" fill="{color}" '
+                   f'stroke="var(--card)" stroke-width="0.4"/><text x="{x:.1f}" y="{y + 0.9:.1f}" font-size="{2.6 if p["maglia"] else 2}" '
+                   f'fill="#fff" text-anchor="middle" font-weight="700">{e(label)}</text></g>')
+    shown.sort(key=lambda x: (not x[0]["maglia"], int(x[0]["maglia"]) if x[0]["maglia"].isdigit() else 0, short(x[0])))
+    legend = "".join(f'<li><b style="display:inline-block;min-width:22px;color:{color}">{e(lab)}</b>{e(short(p))}'
+                     f'<span class="sub"> · {vol[pid]}</span></li>' for p, lab, pid in shown)
+    return (f'<p class="sub" style="margin:0 0 6px">{e(note)}</p>'
+            f'<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start"><div style="flex:3 1 420px">{pitch("".join(out))}</div>'
+            f'<ul style="flex:1 1 200px;list-style:none;padding:0;margin:0;font-size:13px;line-height:1.75">{legend}</ul></div>')
 
 
 def pass_network(players, edges, color):
@@ -219,43 +404,110 @@ def carry_class(c):
     return 1 if x >= 0.01 else 0
 
 
-def carry_map(C, team, color, players):
+ESITO_G = {"gol": "tiro", "tiro": "tiro", "palla persa": "persa", "fallo subito": "altro", "possesso mantenuto": "altro"}
+
+
+def carry_map(C, team, color, players, ti):
     cs = [c for c in C if c["squadra"] == team]
     if not cs:
         return '<p class="sub">Nessuna conduzione significativa.</p>'
     info = {p["player_id"]: p for p in players}
     lab = lambda pid: (info.get(pid, {}).get("maglia") or initials(pitch_name(info[pid]))) if pid in info else "?"
-    out = []
+    defs = "<defs>" + "".join(f'<marker id="ar{ti}{k}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" '
+                              f'orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="{col}"/></marker>'
+                              for k, (_, col, _) in enumerate(CARRY_CLS)) + "</defs>"
+    out = [defs]
     for c in sorted(cs, key=lambda c: (carry_class(c), num(c["xt"]))):
         k = carry_class(c)
         name, col, w = CARRY_CLS[k]
         who = short(info[c["player_id"]]) if c["player_id"] in info else c["giocatore"]
+        es = c.get("esito", "")
         extra = " · entra in area" if c["in_area"] == "1" else ""
-        out.append(f'<g data-pid="{c["player_id"]}"><title>{c["minuto"]}\' {e(who)} – {c["metri"]} m, xT +{f(c["xt"], 3)} '
-                   f'(pericolosità {name}){extra}</title>'
-                   f'<line x1="{c["x"]}" y1="{c["y"]}" x2="{c["fine_x"]}" y2="{c["fine_y"]}" stroke="{col}" stroke-width="{w}" stroke-linecap="round"/>'
-                   f'<circle cx="{c["x"]}" cy="{c["y"]}" r="0.45" fill="{col}"/>'
-                   f'<circle cx="{c["fine_x"]}" cy="{c["fine_y"]}" r="1.75" fill="{col}" stroke="{color}" stroke-width="0.35"/>'
-                   f'<text x="{c["fine_x"]}" y="{num(c["fine_y"]) + 0.65:.2f}" font-size="1.8" font-weight="700" text-anchor="middle" '
-                   f'fill="#fff">{e(lab(c["player_id"]))}</text></g>')
-    tot = defaultdict(lambda: [0, 0.0, 0.0, 0])
+        end = ""
+        fx, fy = num(c["fine_x"]), num(c["fine_y"])
+        if es == "gol":
+            end = f'<text x="{fx + 1.2:.1f}" y="{fy - 1:.1f}" font-size="2.6">⚽</text>'
+        elif es == "tiro":
+            end = f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="1.5" fill="none" stroke="var(--ink)" stroke-width="0.35"/>'
+        elif es == "palla persa":
+            end = (f'<path d="M{fx + 1:.1f},{fy - 2:.1f} l1.6,1.6 m0,-1.6 l-1.6,1.6" stroke="#e03131" stroke-width="0.45"/>')
+        out.append(f'<g data-pid="{c["player_id"]}" data-k="{k}" data-p="{c["periodo"]}" data-o="{ESITO_G.get(es, "altro")}">'
+                   f'<title>{c["minuto"]}\' {e(who)} – {c["metri"]} m, xT +{f(c["xt"], 3)} (pericolosità {name}){extra}'
+                   f'{f" – esito: {es}" if es else ""}</title>'
+                   f'<line x1="{c["x"]}" y1="{c["y"]}" x2="{c["fine_x"]}" y2="{c["fine_y"]}" stroke="{col}" stroke-width="{w}" '
+                   f'stroke-linecap="round" marker-end="url(#ar{ti}{k})"/>'
+                   f'<circle cx="{c["x"]}" cy="{c["y"]}" r="1.75" fill="{col}" stroke="{color}" stroke-width="0.35"/>'
+                   f'<text x="{c["x"]}" y="{num(c["y"]) + 0.65:.2f}" font-size="1.8" font-weight="700" text-anchor="middle" '
+                   f'fill="#fff">{e(lab(c["player_id"]))}</text>{end}</g>')
+    tot = defaultdict(lambda: [0, 0.0, 0.0, 0, 0, 0])
     for c in cs:
         t = tot[c["player_id"]]
         t[0] += 1; t[1] += num(c["metri"]); t[2] += num(c["xt"]); t[3] += carry_class(c) == 2
+        t[4] += c.get("esito") in ("tiro", "gol"); t[5] += c.get("esito") == "palla persa"
     rows = "".join(
         f'<li data-pid="{pid}" style="cursor:pointer"><b style="display:inline-block;min-width:22px;color:{color}">{e(lab(pid))}</b>'
         f'{e(short(info[pid]) if pid in info else pid)} <span class="sub">· {t[0]} cond. · {t[1]:.0f} m · xT {t[2]:.2f}'
-        f'{f" · <b style=color:#d6336c>{t[3]} pericolose</b>" if t[3] else ""}</span></li>'
+        f'{f" · <b style=color:#d6336c>{t[3]} pericolose</b>" if t[3] else ""}'
+        f'{f" · {t[4]} finite in tiro" if t[4] else ""}{f" · {t[5]} perse" if t[5] else ""}</span></li>'
         for pid, t in sorted(tot.items(), key=lambda kv: -kv[1][2]))
-    return (f'<div class="cm" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start"><div style="flex:3 1 420px">{pitch("".join(out))}</div>'
+    btn = lambda grp, val, txt, on=False: f'<button data-f="{grp}" data-v="{val}" class="{"on" if on else ""}">{txt}</button>'
+    periods = sorted({c["periodo"] for c in cs})
+    flt = ('<div class="flt"><span>Pericolosità</span>' + btn("k", "1", "media e alta", True) + btn("k", "0", "tutte")
+           + '<span>Tempo</span>' + btn("p", "all", "tutta la partita", True)
+           + "".join(btn("p", pp, {"1": "1° tempo", "2": "2° tempo", "3": "1° suppl.", "4": "2° suppl."}[pp]) for pp in periods)
+           + '<span>Esito</span>' + btn("o", "all", "tutti", True) + btn("o", "tiro", "finite in tiro") + btn("o", "persa", "palla persa")
+           + "</div>")
+    return (f'<div class="cm">{flt}<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start"><div style="flex:3 1 420px">'
+            f'{pitch("".join(out))}</div>'
             f'<div style="flex:1 1 220px"><p class="sub" style="margin:0 0 4px">Ordinati per xT · clicca un giocatore per isolarlo</p>'
-            f'<ul style="list-style:none;padding:0;margin:0;font-size:13px;line-height:1.75">{rows}</ul></div></div>')
+            f'<ul style="list-style:none;padding:0;margin:0;font-size:13px;line-height:1.75">{rows}</ul></div></div></div>')
 
 
-CARRY_JS = """<script>document.querySelectorAll('.cm').forEach(function(m){var on=null;
-m.querySelectorAll('li[data-pid]').forEach(function(li){li.onclick=function(){on=on===li.dataset.pid?null:li.dataset.pid;
-m.querySelectorAll('g[data-pid]').forEach(function(g){g.style.opacity=!on||g.dataset.pid===on?1:0.07});
-m.querySelectorAll('li[data-pid]').forEach(function(x){x.style.fontWeight=x.dataset.pid===on?'700':'';x.style.opacity=!on||x.dataset.pid===on?1:0.5})}})})</script>"""
+CARRY_JS = """<script>document.querySelectorAll('.cm').forEach(function(m){var st={k:'1',p:'all',o:'all',pid:null};
+function apply(){m.querySelectorAll('g[data-pid]').forEach(function(g){var ok=(+g.dataset.k>=+st.k)&&(st.p==='all'||g.dataset.p===st.p)&&
+(st.o==='all'||g.dataset.o===st.o);g.style.display=ok?'':'none';g.style.opacity=!st.pid||g.dataset.pid===st.pid?1:0.07});
+m.querySelectorAll('li[data-pid]').forEach(function(x){x.style.fontWeight=x.dataset.pid===st.pid?'700':'';x.style.opacity=!st.pid||x.dataset.pid===st.pid?1:0.5})}
+m.querySelectorAll('.flt button').forEach(function(b){b.onclick=function(){st[b.dataset.f]=b.dataset.v;
+m.querySelectorAll('.flt button[data-f="'+b.dataset.f+'"]').forEach(function(x){x.classList.toggle('on',x===b)});apply()}});
+m.querySelectorAll('li[data-pid]').forEach(function(li){li.onclick=function(){st.pid=st.pid===li.dataset.pid?null:li.dataset.pid;apply()}});apply()})</script>"""
+
+
+PRESS_COL = {"tiro": "#d6336c", "gol": "#d6336c", "palla persa": "#aab3bd"}
+
+
+def pressing_map(RG, team, color, players):
+    rs = [r for r in RG if r["squadra"] == team]
+    if not rs:
+        return '<p class="sub">Nessun dato.</p>'
+    info = {p["player_id"]: p for p in players}
+    out = []
+    for r in sorted(rs, key=lambda r: r["esito"] in ("tiro", "gol")):
+        es = r["esito"]
+        col = PRESS_COL.get(es, color)
+        big = es in ("tiro", "gol")
+        who = short(info[r["player_id"]]) if r["player_id"] in info else ""
+        out.append(f'<circle cx="{r["x"]}" cy="{r["y"]}" r="{1.4 if big else 0.9}" fill="{col}" fill-opacity="{1 if big else 0.75}" '
+                   f'stroke="var(--card)" stroke-width="0.2"><title>{r["minuto"]}\' {e(who)} – {e(r["tipo"])} – poi: {e(es)}</title></circle>')
+        if es == "gol":
+            out.append(f'<text x="{num(r["x"]) + 1.3:.1f}" y="{num(r["y"]) - 1:.1f}" font-size="2.6">⚽</text>')
+    n = len(rs)
+    half = sum(num(r["x"]) >= 60 for r in rs)
+    high = sum(num(r["x"]) >= 80 for r in rs)
+    shot = sum(r["esito"] in ("tiro", "gol") for r in rs)
+    goal = sum(r["esito"] == "gol" for r in rs)
+    thirds = [sum(lo <= num(r["x"]) < hi for r in rs) for lo, hi in ((0, 40), (40, 80), (80, 121))]
+    bar = "".join(f'<div style="flex:{max(v, 0.5)};background:{color};opacity:{0.35 + 0.3 * i};color:#fff;text-align:center;font-size:11px">{v}</div>'
+                  for i, v in enumerate(thirds))
+    best = defaultdict(int)
+    for r in rs:
+        best[r["player_id"]] += 1
+    tops = ", ".join(f'{e(short(info[pid]))} {c}' for pid, c in sorted(best.items(), key=lambda kv: -kv[1])[:3] if pid in info)
+    return (f'{pitch("".join(out))}<div style="display:flex;border-radius:4px;overflow:hidden;margin-top:6px">{bar}</div>'
+            f'<div class="sub" style="display:flex;justify-content:space-between;font-size:11px"><span>terzo difensivo</span>'
+            f'<span>centrocampo</span><span>terzo offensivo</span></div>'
+            f'<p style="margin:6px 0 0;font-size:13px"><b>{n}</b> palloni recuperati · <b>{100 * half / n:.0f}%</b> nella metà avversaria · '
+            f'<b>{high}</b> nel terzo offensivo · <b style="color:#d6336c">{shot}</b> portano a un tiro entro 10"{f" ({goal} gol)" if goal else ""}'
+            f'<br><span class="sub">Più recuperi: {tops}</span></p>')
 
 
 INDIV_JS = """<script>(function(){var D=JSON.parse(document.getElementById('indiv-data').textContent);
@@ -376,7 +628,7 @@ def momentum_chart(T, teams):
                    f'<title>{i * 5}-{i * 5 + 5}\' {e(teams[1])}: {b}</title></rect>')
         if i % 3 == 0:
             out.append(f'<text x="{x:.1f}" y="{H - 4}" font-size="10" fill="var(--mute)">{i * 5}\'</text>')
-    out.append("</svg>")
+    out.append(f'<text x="{W - 4}" y="{H - 2}" font-size="9" fill="var(--mute)" text-anchor="end" opacity="0.8">© Delta Scout</text></svg>')
     return "".join(out)
 
 
@@ -424,7 +676,7 @@ def shot_table(S, teams):
         g = ' style="font-weight:600"' if s["gol"] == "1" else ""
         rows.append(f'<tr{g}><td><span class="dot" style="background:{c}"></span>{s["minuto"]}\'</td><td style="text-align:left">{e(s["giocatore"])}</td>'
                     f'<td>{f(s["xg"])}</td><td style="text-align:left">{ESITI.get(s["esito"], e(s["esito"]))}</td><td>{f(s["distanza_porta"], 1)}</td>'
-                    f'<td style="text-align:left">{e(s["parte_corpo"])}</td><td style="text-align:left">{e(situation(s))}</td>'
+                    f'<td style="text-align:left">{e(CORPO.get(s["parte_corpo"], s["parte_corpo"]))}</td><td style="text-align:left">{e(situation(s))}</td>'
                     f'<td>{s["difensori_nel_triangolo"]}</td><td>{"sì" if s["sotto_pressione"] == "1" else ""}</td>'
                     f'<td>{"sì" if s["primo_tocco"] == "1" else ""}</td><td style="text-align:left">{e(s["assistman"])}</td></tr>')
     head = ("<tr><th>Min</th><th>Giocatore</th><th>xG</th><th>Esito</th><th>Dist. (yd)</th><th>Corpo</th><th>Situazione</th>"
@@ -436,6 +688,12 @@ ICON = {"Gol": "⚽", "Gol su rigore": "⚽ (R)", "Autogol": "⚽ (AG)", "Giallo
         "Sostituzione": "🔁", "Cambio modulo": "📐"}
 
 
+def it_detail(d):
+    for a, b in MOTIVI.items():
+        d = d.replace(a, b)
+    return d
+
+
 def timeline(K, teams):
     if not K:
         return '<p class="sub">Nessun evento.</p>'
@@ -444,7 +702,7 @@ def timeline(K, teams):
         c = COL[teams.index(k["squadra"])] if k["squadra"] in teams else "inherit"
         who = e(k["giocatore"])
         rows.append(f'<tr><td class="m">{k["minuto"]}\'</td><td>{ICON.get(k["tipo"], "")} <span class="dot" style="background:{c}"></span>'
-                    f'<b>{e(k["tipo"])}</b> {who} <span class="sub">{e(k["dettaglio"])}</span></td></tr>')
+                    f'<b>{e(k["tipo"])}</b> {who} <span class="sub">{e(it_detail(k["dettaglio"]))}</span></td></tr>')
     return f'<table class="tl">{"".join(rows)}</table>'
 
 
@@ -466,7 +724,7 @@ def rv(p, a, b):
 
 
 PLAYER_TABS = {
-    "Attacco": [("Min", lambda p: f(p["minuti"], 0)), ("Gol", lambda p: g(p, "gol")), ("Ass", lambda p: g(p, "assist")),
+    "Attacco": [("Voto", lambda p: voto_badge(p.get("voto"))), ("Min", lambda p: f(p["minuti"], 0)), ("Gol", lambda p: g(p, "gol")), ("Ass", lambda p: g(p, "assist")),
                 ("xG", lambda p: g(p, "xg", 2)), ("npxG", lambda p: g(p, "npxg", 2)), ("xA", lambda p: g(p, "xa", 2)),
                 ("xT", lambda p: g(p, "xt", 2)), ("xG chain", lambda p: g(p, "xg_chain", 2)), ("SCA", lambda p: g(p, "sca")), ("GCA", lambda p: g(p, "gca")),
                 ("Tiri (porta)", lambda p: f'{g(p, "tiri")} ({g(p, "tiri_in_porta")})'), ("Tocchi area", lambda p: g(p, "tocchi_in_area")),
@@ -496,8 +754,9 @@ PLAYER_TABS = {
     "Profilo": [("Età", lambda p: age(p, p["data"]) or "–"), ("Nato il", lambda p: ANAG.get(p["player_id"], {}).get("data_nascita") or "–"),
                 ("Altezza", lambda p: ANAG.get(p["player_id"], {}).get("altezza_cm") or "–"),
                 ("Nazionalità", lambda p: e(p.get("nazionalita") or "–")),
-                ("Ruolo abituale", lambda p: e(ANAG.get(p["player_id"], {}).get("ruolo") or "–")),
+                ("Ruolo abituale", lambda p: e(REEP_IT.get((ANAG.get(p["player_id"], {}).get("ruolo") or "").lower(), ANAG.get(p["player_id"], {}).get("ruolo")) or "–")),
                 ("Link", lambda p: links(p))],
+    "Rispetto alla carriera": [(lab, (lambda k: lambda p: ctx_cell(p, k))(k)) for k, lab in CTX],
     "Portiere": [("Min", lambda p: f(p["minuti"], 0)), ("Parate", lambda p: g(p, "parate")), ("Gol subiti", lambda p: g(p, "gol_subiti_portiere")),
                  ("Uscite", lambda p: g(p, "uscite")), ("Prese alte", lambda p: g(p, "prese_alte")), ("Pugni", lambda p: g(p, "respinte_di_pugno")),
                  ("Pass", lambda p: rv(p, "passaggi_riusciti", "passaggi")), ("%", lambda p: g(p, "precisione_passaggi_pct", 0)),
@@ -530,7 +789,7 @@ def player_tabs(players, color):
             cls = "" if p["titolare"] == "1" else ' class="sub"'
             ag = age(p, p["data"])
             rows.append(f'<tr{cls}><td>{e(p["maglia"] or "")} {e(short(p))}{card}{f" <span class=sub>({ag})</span>" if ag else ""}</td>'
-                        + (f'<td style="text-align:left">{e(p["ruolo"])}</td>' if i == 0 else "")
+                        + (f'<td style="text-align:left">{e(it_role(p["ruolo"]))}</td>' if i == 0 else "")
                         + "".join(f"<td>{fn(p)}</td>" for _, fn in cols)
                         + (f"<td>{mini_heat(p['heatmap_6x4'], color)}</td>" if i == 0 else "") + "</tr>")
         panes.append(f'<div data-tab="{k}" class="scroll{"" if i == 0 else " hidden"}"><table class="pl">{head}{"".join(rows)}</table></div>')
@@ -593,6 +852,24 @@ def summary(T, P, teams):
         out.append(f'Qualità delle occasioni migliore per {e(tq)} ({f(vq)} xG a tiro su {nq} tiri) rispetto a {e(to)} '
                    f'({f(vo)} su {no}).')
     keys = []
+    rated = [p for p in P if p.get("voto")]
+    if rated:
+        p = max(rated, key=lambda p: float(p["voto"]))
+        keys.append(f'<b>Migliore in campo: {e(short(p))}</b> ({e(p["squadra"])}) con voto Delta Scout {voto_badge(p["voto"], "12px")}.')
+    best_ctx = None
+    for p in P:
+        c = CAREER.get(p["player_id"])
+        if not c or num(c["minuti"]) < 900:
+            continue
+        ups = [(lab, match_p90(p, k), num(c.get(f"{k}_p90"))) for k, lab in CTX]
+        ups = [(lab, v, car) for lab, v, car in ups if v is not None and car > 0 and v >= 1.5 * car and v - car > 0.05]
+        if len(ups) >= 3 and (best_ctx is None or len(ups) > len(best_ctx[1])):
+            best_ctx = (p, ups)
+    if best_ctx:
+        p, ups = best_ctx
+        det = ", ".join(f"{lab} {v:.2f} contro {car:.2f}" for lab, v, car in ups[:3])
+        keys.append(f'<b>{e(short(p))}</b> ({e(p["squadra"])}) molto sopra la sua media in carriera in {len(ups)} statistiche '
+                    f'(per 90\': {det}).')
     att = top(P, lambda p: num(p["xg"]) + num(p["xa"]))
     if att:
         p = att[0]
@@ -756,10 +1033,14 @@ def lineups(T, P, R, K, teams):
             badges = []
             gl = int(num(p.get("gol")))
             if gl:
-                badges.append(f'<text x="{x + 2.6:.1f}" y="{y - 2.2:.1f}" font-size="2.8">⚽{"" if gl == 1 else f"×{gl}"}</text>')
+                badges.append(f'<text x="{x - 3.2:.1f}" y="{y - 2.0:.1f}" font-size="2.6" text-anchor="end">⚽{"" if gl == 1 else f"×{gl}"}</text>')
             if num(p.get("assist")):
-                badges.append(f'<circle cx="{x - 3:.1f}" cy="{y - 2.6:.1f}" r="1.3" fill="var(--card)" stroke="{c}" stroke-width="0.3"/>'
-                              f'<text x="{x - 3:.1f}" y="{y - 2.0:.1f}" font-size="1.7" text-anchor="middle" fill="{c}" font-weight="700">A</text>')
+                badges.append(f'<circle cx="{x - 3.6:.1f}" cy="{y + 1.0:.1f}" r="1.3" fill="var(--card)" stroke="{c}" stroke-width="0.3"/>'
+                              f'<text x="{x - 3.6:.1f}" y="{y + 1.6:.1f}" font-size="1.7" text-anchor="middle" fill="{c}" font-weight="700">A</text>')
+            if p.get("voto"):
+                badges.append(f'<rect x="{x + 1.6:.1f}" y="{y - 4.6:.1f}" width="5" height="2.8" rx="0.6" fill="{voto_col(p["voto"])}"/>'
+                              f'<text x="{x + 4.1:.1f}" y="{y - 2.55:.1f}" font-size="2" fill="#fff" font-weight="700" text-anchor="middle">'
+                              f'{float(p["voto"]):.1f}</text>')
             cs = cards.get(r["giocatore"], [])
             if cs:
                 col = "#d33" if any(t_ != "Giallo" for t_, _ in cs) else "#f2c200"
@@ -769,7 +1050,7 @@ def lineups(T, P, R, K, teams):
             name = e(pitch_name(r)) + (f', <tspan fill="var(--mute)" font-weight="600">{sigla}</tspan>' if sigla else "")
             sub_txt = (f'<text x="{x:.1f}" y="{y + 8.3:.1f}" font-size="2" fill="#d33" text-anchor="middle" '
                        f'stroke="var(--pitch)" stroke-width="0.5" paint-order="stroke">▼ {sub[0]}\'</text>') if sub else ""
-            tip = f'{r["giocatore"]} – {r["ruolo_iniziale"]}' + (f' – xT {f(p.get("xt"))}, xG {f(p.get("xg"))}' if p else "")
+            tip = f'{r["giocatore"]} – {it_role(r["ruolo_iniziale"])}' + (f' – xT {f(p.get("xt"))}, xG {f(p.get("xg"))}' if p else "")
             marks.append(
                 f'<g><title>{e(tip)}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="3.1" fill="{REPARTI[reparto(r["ruolo_iniziale"])]}" stroke="{c}" stroke-width="0.9"/>'
                 f'<text x="{x:.1f}" y="{y + 1.1:.1f}" font-size="{2.9 if r["maglia"] else 2.2}" fill="#fff" text-anchor="middle" '
@@ -806,7 +1087,7 @@ def bench(t, R, K, team, color):
     items = []
     for off, (minute, on, motivo) in sorted(subs.items(), key=lambda x: int(x[1][0])):
         why = {"Tactical": "", "Injury": " – infortunio"}.get(motivo, f" – {motivo}" if motivo else "")
-        role = rows.get(on, {}).get("ruoli", "")
+        role = it_roles(rows.get(on, {}).get("ruoli", ""))
         items.append(f'<li><span class="sub">{minute}\'</span> <span style="color:#2a9d4a">▲</span> <b>{label(on)}</b>{tag(on)} '
                      f'<span style="color:#d33">▼</span> {label(off)}<span class="sub">{why}{f" · {e(role)}" if role else ""}</span></li>')
     unused = [r for r in R if r["squadra"] == team and r["stato"] == "non entrato"]
@@ -819,7 +1100,7 @@ def bench(t, R, K, team, color):
         ch = "".join(f'; {k["minuto"]}\' {e(k["dettaglio"])}' for k in shifts)
         out.append(f'<p style="margin:0 0 6px"><b>Modulo:</b> {e(t["modulo"])}<span class="sub">{ch}</span></p>')
     out.append('<p style="margin:0 0 4px"><b>Titolari:</b></p><ul class="sub" style="margin-bottom:8px">'
-               + "".join(f'<li><span style="color:var(--ink)">{label(r["giocatore"])}</span>{tag(r["giocatore"])} · {e(r["ruoli"])}</li>' for r in xi)
+               + "".join(f'<li><span style="color:var(--ink)">{label(r["giocatore"])}</span>{tag(r["giocatore"])} · {e(it_roles(r["ruoli"]))}</li>' for r in xi)
                + "</ul>")
     if items:
         out.append(f'<p style="margin:0 0 4px"><b>Sostituzioni:</b></p><ul style="margin-bottom:8px">{"".join(items)}</ul>')
@@ -833,10 +1114,11 @@ def initials(name):
     return "".join(w[0] for w in name.split()[:2]).upper()
 
 
-def report(T, P, S, E, K, teams, R=(), C=(), PS=None):
+def report(T, P, S, E, K, teams, R=(), C=(), PS=None, RG=()):
     nums = {r["player_id"]: r["maglia"] for r in R}
     for p in P:  # i numeri di rose.csv includono quelli recuperati quando la fonte riporta 0
         p["maglia"] = nums.get(p["player_id"], "" if p["maglia"] in ("0", "") else p["maglia"])
+        p["voto"] = VOTI.get((p["n"], p["player_id"]), "")
     h, a = T[teams[0]], T[teams[1]]
     has360 = h.get("dati_360") == "1"
     text, keys = summary(T, P, teams)
@@ -856,52 +1138,69 @@ def report(T, P, S, E, K, teams, R=(), C=(), PS=None):
     title = f'{teams[0]} {h["gol"]}-{a["gol"]} {teams[1]}'
     legend = "".join(f'<span class="dot" style="background:{COL[i]}"></span>{e(t)} &nbsp; ' for i, t in enumerate(teams))
     nets = "".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>'
-                   f'{pass_network(by_team[t], [x for x in E if x["squadra"] == t], COL[i])}</div>' for i, t in enumerate(teams))
-    tables = "".join(f'<div class="card"><h2><span class="dot" style="background:{COL[i]}"></span>Giocatori – {e(t)}</h2>'
+                   + (network_until_sub(PS, P, t, K, COL[i]) if PS is not None else
+                      pass_network(by_team[t], [x for x in E if x["squadra"] == t], COL[i])) + '</div>' for i, t in enumerate(teams))
+    press = "".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{pressing_map(RG, t, COL[i], P)}</div>'
+                    for i, t in enumerate(teams))
+    nav = "".join(f'<a href="#{i}">{l}</a>' for i, l in (("analisi", "Analisi"), ("formazioni", "Formazioni"), ("statistiche", "Statistiche"),
+                  ("cronaca", "Cronaca"), ("tiri", "Tiri"), ("conduzioni", "Conduzioni"), ("pressing", "Pressing"),
+                  ("individuali", "Mappe individuali"), ("rete", "Rete passaggi"), ("calore", "Mappe di calore"), ("giocatori", "Giocatori")))
+    tables = "".join(f'<div class="card" id="giocatori"><h2><span class="dot" style="background:{COL[i]}"></span>Giocatori – {e(t)}</h2>'
                      f'{player_tabs(by_team[t], COL[i])}{leg((sw_grad(COL[i]), "heatmap: da poche a molte azioni (attacca a destra)"), ("🟨🟥", "cartellini"), ("(25)", "età"))}'
-                     f'<div class="legend">Righe in grigio = subentrati. Contrasti, dribbling, aerei e passaggi: riusciti/tentati.</div></div>' for i, t in enumerate(teams))
-    heat = "".join(f'<div class="card"><h2><span class="dot" style="background:{COL[i]}"></span>Mappe di calore – {e(t)}</h2><div class="grid3">'
+                     f'<div class="legend">Righe in grigio = subentrati. Contrasti, dribbling, aerei e passaggi: riusciti/tentati. '
+                     f'Voto Delta Scout 0–10 (s.v. sotto 20 minuti): indice calcolato da Delta Scout confrontando ogni statistica con tutte le '
+                     f'prestazioni dello stesso reparto. "Rispetto alla carriera": valore per 90\' nella partita / media per 90\' in carriera '
+                     f'(▲ almeno 1,5 volte la media, ▼ meno della metà; servono 30 minuti).</div></div>' for i, t in enumerate(teams))
+    heat = "".join(f'<div class="card" id="calore"><h2><span class="dot" style="background:{COL[i]}"></span>Mappe di calore – {e(t)}</h2><div class="grid3">'
                    + "".join(f'<div><h3>{lab}</h3>{heat_pitch(T[t].get(f"heatmap_{k}_6x4"), COL[i])}</div>'
                              for k, lab in (("tocchi", "Azioni con palla"), ("pressioni", "Pressioni"), ("difesa", "Azioni difensive")))
                    + f'</div>{leg((sw_grad(COL[i]), "da poche a molte azioni"))}<div class="legend">La squadra attacca verso destra.</div></div>'
                    for i, t in enumerate(teams) if T[t].get("heatmap_tocchi_6x4"))
     combo = "".join(f"<div>{combos(E, by_team[t], t, COL[i])}</div>" for i, t in enumerate(teams))
     return f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{e(title)} – Delta Scout</title><style>{CSS}</style></head><body><main>
-<p class="sub"><a href="index.html">← Tutte le partite</a></p>
+<title>{e(title)} – Delta Scout</title>{HEAD_EXTRA}<style>{CSS}</style></head><body><main>
+{brand_bar(nav)}
+<p class="sub"><a href="index.html">← Tutte le partite</a> · <a href="classifiche.html">Classifiche</a></p>
 <div class="card"><h1>#{meta["n"]} · {e(meta["competizione"])} {e(meta["stagione"])} · {e(meta["data"])}</h1>
 <div class="score"><div class="t" style="color:{COL[0]}">{e(teams[0])}</div><div class="r">{h["gol"]} – {a["gol"]}</div>
 <div class="t" style="color:{COL[1]}">{e(teams[1])}</div></div>
 <div class="score sub"><div>xG {f(h["xg"])}{mod(h)}{coach(h)}</div><div></div><div>xG {f(a["xg"])}{mod(a)}{coach(a)}</div></div>
 <div class="kv sub">{info_line(h)}</div></div>
-<div class="card"><h2>Analisi</h2><p>{" ".join(text)}</p><h3>Giocatori chiave</h3><ul>{"".join(f"<li>{k}</li>" for k in keys)}</ul></div>
-{f'<div class="card"><h2>Formazioni</h2>{lineups(T, P, R, K, teams)}</div>' if R else ""}
-<div class="grid2"><div class="card"><h2>Statistiche di squadra</h2>{leg((sw_rect(COL[0]), e(teams[0])), (sw_rect(COL[1]), e(teams[1])))}
+<div class="card" id="analisi"><h2>Analisi</h2><p>{" ".join(text)}</p><h3>Giocatori chiave</h3><ul>{"".join(f"<li>{k}</li>" for k in keys)}</ul></div>
+{f'<div class="card" id="formazioni"><h2>Formazioni</h2>{lineups(T, P, R, K, teams)}</div>' if R else ""}
+<div class="grid2" id="statistiche"><div class="card"><h2>Statistiche di squadra</h2>{leg((sw_rect(COL[0]), e(teams[0])), (sw_rect(COL[1]), e(teams[1])))}
 <table class="cmp" style="margin-top:8px">{"".join(rows)}</table><div class="legend">La barra mostra la quota di ogni squadra sul totale.</div></div>
 <div><div class="card"><h2>Andamento xG</h2>{xg_timeline(S, teams)}{leg((sw_line(COL[0], 2.5), e(teams[0])), (sw_line(COL[1], 2.5), e(teams[1])), (sw_dot("var(--mute)"), "gol"))}
 <div class="legend">xG cumulati minuto per minuto: ogni gradino è un tiro.</div></div>
 <div class="card"><h2>Mappa dei tiri</h2>{shot_map(S, teams)}{leg((sw_dot(COL[0]), f"gol {e(teams[0])}"), (sw_dot(COL[0], False), "tiro"), (sw_dot(COL[1]), f"gol {e(teams[1])}"), (sw_dot(COL[1], False), "tiro"), (sw_dot("var(--mute)", False, 1.8), "xG basso"), (sw_dot("var(--mute)", False, 5), "xG alto"))}
 <div class="legend">{e(teams[0])} attacca a destra, {e(teams[1])} a sinistra · passa il mouse per i dettagli</div></div></div></div>
-<div class="grid2"><div class="card"><h2>Cronaca</h2>{timeline(K, teams)}</div>
+<div class="grid2" id="cronaca"><div class="card"><h2>Cronaca</h2>{timeline(K, teams)}</div>
 <div><div class="card"><h2>Momentum</h2>{momentum_chart(T, teams)}{leg((sw_rect(COL[0]), f"{e(teams[0])} (sopra)"), (sw_rect(COL[1]), f"{e(teams[1])} (sotto)"))}
 <div class="legend">Azioni nel terzo offensivo ogni 5 minuti: barra più alta = più pressione offensiva.</div></div>
 <div class="card"><h2>Combinazioni più frequenti</h2><div class="grid2">{combo}</div></div></div></div>
-<div class="card"><h2>Tiri per tipo</h2>{shot_breakdown(S, teams)}</div>
+<div class="card" id="tiri"><h2>Tiri per tipo</h2>{shot_breakdown(S, teams)}</div>
 <div class="card"><h2>Tutti i tiri</h2>{shot_table(S, teams)}</div>
-<div class="card"><h2>Carry map – conduzioni palla</h2><div style="display:grid;gap:18px">{"".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{carry_map(C, t, COL[i], P)}</div>' for i, t in enumerate(teams))}</div>
+<div class="card" id="conduzioni"><h2>Carry map – conduzioni palla</h2><div style="display:grid;gap:22px">{"".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{carry_map(C, t, COL[i], P, i)}</div>' for i, t in enumerate(teams))}</div>
 {leg(*[(sw_line(col, 2.2, "", 1, True), f"pericolosità {name}") for name, col, _ in CARRY_CLS])}
-<div class="legend">Ogni linea è una conduzione palla al piede (progressiva, nel terzo finale o in area): parte dal puntino piccolo e finisce nel
-cerchio con il numero di maglia di chi l'ha fatta. Pericolosità = xT guadagnato: bassa sotto 0,01, media 0,01–0,03, alta oltre 0,03 o se entra in area.
-Entrambe le squadre attaccano verso destra · passa il mouse su una conduzione per minuto, metri e xT.</div></div>{CARRY_JS}
-{f'<div class="card"><h2>Mappe individuali</h2>{individual_maps(P, PS, C, teams)}</div>' if PS is not None else ""}
-<div class="card"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div>{leg((sw_dot("var(--mute)", True, 2.5), "poco coinvolto"), (sw_dot("var(--mute)", True, 5), "molto coinvolto"), (sw_line("var(--mute)", 0.8, "", 0.4), "pochi passaggi"), (sw_line("var(--mute)", 3), "molti passaggi"))}<div class="legend">Posizione media dei giocatori,
-linee = almeno 3 passaggi riusciti (più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.
+{leg((sw(f'<circle cx="11" cy="6" r="5" fill="#7b8794"/><text x="11" y="8.4" font-size="7" text-anchor="middle" fill="#fff" font-weight="700">10</text>'), "chi parte palla al piede (numero di maglia)"),
+     (sw('<circle cx="11" cy="6" r="4.3" fill="none" stroke="var(--ink)" stroke-width="1.2"/>'), "finisce in un tiro entro 10\""), ("⚽", "finisce in gol"),
+     (sw('<path d="M7,2 l8,8 m0,-8 l-8,8" stroke="#e03131" stroke-width="1.6"/>'), "palla persa entro 10\""))}
+<div class="legend">Conduzioni progressive, nel terzo finale o in area. Il cerchio con il numero è il punto di partenza, la freccia indica dove è arrivato il giocatore.
+Pericolosità = xT guadagnato: bassa sotto 0,01, media 0,01–0,03, alta oltre 0,03 o se entra in area. Di base sono mostrate solo quelle medie e alte.
+Entrambe le squadre attaccano verso destra · passa il mouse su una conduzione per i dettagli.</div></div>{CARRY_JS}
+<div class="card" id="pressing"><h2>Pressing – dove si recupera palla</h2><div class="grid2">{press}</div>
+{leg((sw_dot("var(--mute)", True, 2.5), "recupero (colore della squadra)"), (sw_dot("#d6336c", True, 4), "porta a un tiro entro 10\""), ("⚽", "porta a un gol"), (sw_dot("#aab3bd", True, 2.5), "palla persa subito dopo"))}
+<div class="legend">Recuperi palla, intercetti vinti e contrasti vinti. Entrambe le squadre attaccano verso destra: più punti a destra = pressing più alto.
+La barra sotto il campo conta i recuperi per terzo di campo.</div></div>
+{f'<div class="card" id="individuali"><h2>Mappe individuali</h2>{individual_maps(P, PS, C, teams)}</div>' if PS is not None else ""}
+<div class="card" id="rete"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div>{leg((sw_dot("var(--mute)", True, 2.5), "poco coinvolto"), (sw_dot("var(--mute)", True, 5), "molto coinvolto"), (sw_line("var(--mute)", 0.8, "", 0.4), "pochi passaggi"), (sw_line("var(--mute)", 3), "molti passaggi"))}<div class="legend">Come negli strumenti professionali, la rete considera solo il periodo prima del primo cambio (o espulsione), così ogni
+cerchio è un giocatore realmente in campo nello stesso momento. Posizione media di passaggi e ricezioni; linee = almeno 2 passaggi riusciti
+(più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.
 Accanto: numero di maglia → giocatore, con i passaggi scambiati nella rete.</div></div>
 {heat}
 {tables}
-<p class="sub">Dati: StatsBomb Open Data · Report generato da Delta Scout. Righe in grigio = subentrati.
-Heatmap: azioni con palla, la squadra attacca verso destra.</p>
-</main>{TAB_JS}</body></html>"""
+{footer()}
+</main>{TAB_JS}{PROTECT_JS}</body></html>"""
 
 
 def mod(t):
@@ -918,7 +1217,7 @@ def coach(t):
 
 
 def info_line(t):
-    parts = [("Fase", t.get("fase")), ("Giornata", t.get("giornata")), ("Stadio", t.get("stadio")), ("Arbitro", t.get("arbitro"))]
+    parts = [("Fase", FASI.get(t.get("fase"), t.get("fase"))), ("Giornata", t.get("giornata")), ("Stadio", t.get("stadio")), ("Arbitro", t.get("arbitro"))]
     return "".join(f"<span>{k}: {e(v)}</span>" for k, v in parts if v)
 
 
@@ -955,11 +1254,25 @@ def main():
     if (src / "elo.csv").exists():
         with open(src / "elo.csv", encoding="utf-8") as fh:
             ELO.update({(r["n"], r["squadra"]): r for r in csv.DictReader(fh)})
+    if (src / "voti.csv").exists():
+        with open(src / "voti.csv", encoding="utf-8") as fh:
+            VOTI.update({(r["n"], r["player_id"]): r["voto"] for r in csv.DictReader(fh) if r["voto"]})
+    if (src / "carriere_giocatori.csv").exists():
+        with open(src / "carriere_giocatori.csv", encoding="utf-8") as fh:
+            CAREER.update({r["player_id"]: r for r in csv.DictReader(fh)})
+        for r in CAREER.values():
+            r["azioni_difensive_p90"] = r.get("azioni_difensive_p90") or str(
+                num(r["contrasti_vinti_p90"]) + num(r["intercetti_p90"]) + num(r["recuperi_p90"]))
     out.mkdir(parents=True, exist_ok=True)
+    logo_png = HERE / "statsbomb_logo.png"
+    if logo_png.exists():
+        (out / "statsbomb_logo.png").write_bytes(logo_png.read_bytes())
+    if (HERE / "classifiche.html").exists():
+        (out / "classifiche.html").write_bytes((HERE / "classifiche.html").read_bytes())
 
     # i CSV sono ordinati per n: si leggono in parallelo, una partita alla volta (poca memoria)
     iters = {k: groups(src / f"{k}.csv", wanted) if (src / f"{k}.csv").exists() else iter(())
-             for k in ("squadre", "giocatori", "tiri", "rete_passaggi", "eventi_chiave", "rose", "conduzioni")}
+             for k in ("squadre", "giocatori", "tiri", "rete_passaggi", "eventi_chiave", "rose", "conduzioni", "recuperi")}
     pending = {k: next(it, None) for k, it in iters.items()}
 
     def take(k, n):
@@ -977,6 +1290,7 @@ def main():
         P, S, E, K = take("giocatori", n), take("tiri", n), take("rete_passaggi", n), take("eventi_chiave", n)
         R = take("rose", n)
         C = take("conduzioni", n)
+        RG = take("recuperi", n)
         pf = src / "passaggi" / f"{n}.json.gz"
         PS = json.loads(gzip.decompress(pf.read_bytes()).decode("utf-8"))["p"] if pf.exists() else None
         home = next((r for r in T_rows if r["casa_trasferta"] == "casa"), T_rows[0])
@@ -984,7 +1298,7 @@ def main():
         T = {r["squadra"]: r for r in T_rows}
         if len(T) != 2:
             continue
-        (out / f"{n}.html").write_text(report(T, P, S, E, K, teams, R, C, PS), encoding="utf-8")
+        (out / f"{n}.html").write_text(report(T, P, S, E, K, teams, R, C, PS, RG), encoding="utf-8")
         done.append((n, home, T[teams[1]]))
         if len(done) % 200 == 0:
             print(f"{len(done)} report…", flush=True)
@@ -998,8 +1312,9 @@ def main():
                    f'<ul>{"".join(v)}</ul></details>' for (c, s), v in sections.items())
     (out / "index.html").write_text(
         f'<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-        f'<title>Delta Scout – Report partite</title><style>{CSS}</style></head><body><main>'
-        f'<h2>Delta Scout – Report partite</h2><p class="sub">{len(done)} partite · dati StatsBomb Open Data</p>{body}</main></body></html>',
+        f'<title>Delta Scout – Report partite</title>{HEAD_EXTRA}<style>{CSS}</style></head><body><main>'
+        f'{brand_bar(INDEX_NAV)}'
+        f'<h2>Report partite</h2><p class="sub">{len(done)} partite · dati StatsBomb Open Data</p>{body}{footer()}</main>{PROTECT_JS}</body></html>',
         encoding="utf-8")
     print(f"Fatto: {len(done)} report in {out}  →  apri {out / 'index.html'}")
 

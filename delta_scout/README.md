@@ -13,7 +13,8 @@ python delta_scout/elo.py                        # rating Elo delle squadre -> o
 python delta_scout/anagrafica.py                 # età, altezza, link Transfermarkt/FBref da Reep -> output/anagrafica_giocatori.csv
 python delta_scout/rose.py                       # rose complete (titolari, subentrati, riserve) -> output/rose.csv
 python delta_scout/classifiche.py                # classifiche di tutti i tempi -> classifiche.html + output/carriere_giocatori.csv
-python delta_scout/conduzioni.py                 # conduzioni significative -> output/conduzioni.csv (carry map)
+python delta_scout/sequenze.py                   # conduzioni (con esito) e recuperi palla -> output/conduzioni.csv, output/recuperi.csv
+python delta_scout/voti.py                       # voto Delta Scout 0-10 per giocatore e partita -> output/voti.csv
 python delta_scout/passaggi.py                   # tutti i passaggi compressi -> output/passaggi/<n>.json.gz (mappe individuali)
 python delta_scout/report.py                     # report HTML di ogni partita in delta_scout/report/
 python delta_scout/report.py --n 778 --out C:\DeltaScout\report
@@ -117,6 +118,22 @@ modulo e cambi di modulo, titolari con ruoli, sostituzioni (minuto, motivo) e ri
 metrica (36 metriche: per 90', percentuali con minimo di tentativi, Gol − xG in carriera) e ricerca; sotto, i podi per ruolo.
 Il ruolo di un giocatore è quello in cui ha giocato più minuti. `output/carriere_giocatori.csv` contiene totali e valori per 90'
 di tutti i 9.884 giocatori.
+
+## Voto Delta Scout, contesto, pressing
+
+- `output/voti.csv`: voto 0–10 per prestazione (s.v. sotto 20 minuti). Ogni statistica è confrontata (z-score) con tutte le
+  prestazioni dello stesso reparto e dello stesso calcio (maschile/femminile); pesi per reparto in `voti.py` (`WEIGHTS`).
+  Scala centrata su 6,6 e compressa agli estremi. È un indice di Delta Scout, non una verità oggettiva.
+- `output/recuperi.csv`: recuperi palla, intercetti e contrasti vinti con esito nei 10 secondi successivi (tiro, gol, palla persa…).
+- Nel report: voto in formazione e tabelle, migliore in campo, scheda "Rispetto alla carriera" (valore per 90' / media in carriera),
+  mappa del pressing, carry map con frecce, esito e filtri, rete di passaggi fino al primo cambio, menu di navigazione.
+
+## Logo, copyright e protezione
+
+Logo in `logo.svg` (ricostruzione vettoriale): in testa a ogni pagina, come favicon e in filigrana su ogni grafico ("© Delta Scout").
+Piè di pagina con copyright e attribuzione obbligatoria a StatsBomb (logo `statsbomb_logo.png`, richiesto dalle loro condizioni).
+Deterrenti leggeri: tasto destro e trascinamento disattivati sui grafici, meta `noai`. Nessuna misura impedisce davvero la copia
+di una pagina pubblica: la tutela reale è il copyright e la filigrana.
 
 ## Carry map e mappe individuali
 
