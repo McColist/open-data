@@ -620,6 +620,16 @@ ROLE_XY = {
 REPARTI = {"Portiere": "#c99a06", "Difensore": "#2f8f5b", "Centrocampista": "#7b5cd6", "Attaccante": "#e8590c"}
 
 
+SIGLE = {
+    "Goalkeeper": "GK", "Right Back": "RB", "Right Center Back": "RCB", "Center Back": "CB", "Left Center Back": "LCB",
+    "Left Back": "LB", "Right Wing Back": "RWB", "Left Wing Back": "LWB", "Right Defensive Midfield": "RDM",
+    "Center Defensive Midfield": "CDM", "Left Defensive Midfield": "LDM", "Right Midfield": "RM", "Right Center Midfield": "RCM",
+    "Center Midfield": "CM", "Left Center Midfield": "LCM", "Left Midfield": "LM", "Right Wing": "RW",
+    "Right Attacking Midfield": "RAM", "Center Attacking Midfield": "CAM", "Left Attacking Midfield": "LAM", "Left Wing": "LW",
+    "Right Center Forward": "RCF", "Center Forward": "CF", "Left Center Forward": "LCF", "Secondary Striker": "SS",
+}
+
+
 def reparto(role):
     if role == "Goalkeeper":
         return "Portiere"
@@ -668,29 +678,29 @@ def goal_minutes(K, team):
 
 
 def spread(pts):
-    """Porta le posizioni medie nella propria metà (5-49 x 11-69), mantenendo l'ordine, e separa i giocatori sovrapposti."""
+    """Porta le posizioni medie nella propria metà (10-49 x 11-69), mantenendo l'ordine, e separa i giocatori sovrapposti."""
     if not pts:
         return
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
     for p in pts:
-        p[0] = 5 + 44 * (p[0] - x0) / (x1 - x0 or 1)
+        p[0] = 10 + 39 * (p[0] - x0) / (x1 - x0 or 1)
         p[1] = 11 + 58 * (p[1] - y0) / (y1 - y0 or 1)
-    for _ in range(60):
+    for _ in range(200):
         moved = False
         for a in range(len(pts)):
             for b in range(a + 1, len(pts)):
                 dx, dy = pts[b][0] - pts[a][0], pts[b][1] - pts[a][1]
-                d = math.hypot(dx / 1.5, dy)
-                if d < 10:
+                d = math.hypot(dx / 2.1, dy)  # le etichette "Cognome, RUOLO" sono larghe
+                if d < 11.5:
                     if d == 0:
                         dx, dy, d = 0.0, 1.0, 1.0
-                    k = (10 - d) / 2 / d
+                    k = (11.5 - d) / 2 / d
                     pts[a][0] -= dx * k * 0.7; pts[a][1] -= dy * k
                     pts[b][0] += dx * k * 0.7; pts[b][1] += dy * k
                     moved = True
         for p in pts:
-            p[0] = min(max(p[0], 4), 51)
+            p[0] = min(max(p[0], 9), 51)
             p[1] = min(max(p[1], 11), 69)  # simmetrico (la trasferta è ruotata) e con spazio sotto per nome e uscita
         if not moved:
             break
@@ -728,7 +738,8 @@ def lineups(T, P, R, K, teams):
                 col = "#d33" if any(t_ != "Giallo" for t_, _ in cs) else "#f2c200"
                 badges.append(f'<rect x="{x + 2.4:.1f}" y="{y + 0.4:.1f}" width="1.5" height="2.1" rx="0.2" fill="{col}"/>')
             sub = subs.get(r["giocatore"])
-            name = e(pitch_name(r))
+            sigla = SIGLE.get(r["ruolo_iniziale"], "")
+            name = e(pitch_name(r)) + (f', <tspan fill="var(--mute)" font-weight="600">{sigla}</tspan>' if sigla else "")
             sub_txt = (f'<text x="{x:.1f}" y="{y + 8.3:.1f}" font-size="2" fill="#d33" text-anchor="middle" '
                        f'stroke="var(--pitch)" stroke-width="0.5" paint-order="stroke">▼ {sub[0]}\'</text>') if sub else ""
             tip = f'{r["giocatore"]} – {r["ruolo_iniziale"]}' + (f' – xT {f(p.get("xt"))}, xG {f(p.get("xg"))}' if p else "")
@@ -736,7 +747,7 @@ def lineups(T, P, R, K, teams):
                 f'<g><title>{e(tip)}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="3.1" fill="{REPARTI[reparto(r["ruolo_iniziale"])]}" stroke="{c}" stroke-width="0.9"/>'
                 f'<text x="{x:.1f}" y="{y + 1.1:.1f}" font-size="{2.9 if r["maglia"] else 2.2}" fill="#fff" text-anchor="middle" '
                 f'font-weight="700">{e(r["maglia"] or initials(pitch_name(r)))}</text>'
-                f'<text x="{x:.1f}" y="{y + 5.6:.1f}" font-size="2.3" fill="var(--ink)" text-anchor="middle" '
+                f'<text x="{x:.1f}" y="{y + 5.6:.1f}" font-size="2.2" fill="var(--ink)" text-anchor="middle" '
                 f'stroke="var(--pitch)" stroke-width="0.6" paint-order="stroke">{name}</text>{sub_txt}{"".join(badges)}</g>')
     head = "".join(f'<div style="text-align:{"left" if i == 0 else "right"}"><span class="dot" style="background:{COL[i]}"></span>'
                    f'<b>{e(t)}</b> <span class="sub">{e(T[t].get("modulo") or "")}</span></div>' for i, t in enumerate(teams))
@@ -747,6 +758,8 @@ def lineups(T, P, R, K, teams):
                   (sw(f'<circle cx="11" cy="6" r="4.5" fill="none" stroke="var(--mute)" stroke-width="1"/><text x="11" y="8.6" font-size="7" text-anchor="middle" fill="var(--mute)" font-weight="700">A</text>'), "assist"),
                   (sw_rect("#f2c200"), "giallo"), (sw_rect("#d33"), "rosso"), ('<span style="color:#d33">▼ 63\'</span>', "minuto di uscita"))
             + f'<div class="legend">Posizione media reale dei titolari (tutte le azioni con palla), ogni squadra nella propria metà · '
+            f'accanto al nome il ruolo di partenza (GK portiere, CB/RCB/LCB centrali, RB/LB terzini, RWB/LWB esterni, CDM/RDM/LDM mediani, '
+            f'CM/RCM/LCM centrocampisti, RM/LM esterni di centrocampo, CAM/RAM/LAM trequartisti, RW/LW ali, CF/RCF/LCF/SS attaccanti) · '
             f'passa il mouse per ruolo, xT e xG</div>'
             f'<div class="grid2" style="margin-top:12px">{lists}</div>')
 
