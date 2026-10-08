@@ -44,6 +44,12 @@ Ogni file di output ha le colonne `n` (numero in `partite.csv`) e `match_id`.
 | conduzioni_progressive, dribbling_* | portata palla |
 | pressioni, pressioni_alte, contropressioni, recuperi, recuperi_alti, contrasti_vinti, intercetti, aerei_vinti | fase difensiva |
 | palle_perse, parate, falli, gialli, rossi, corner, fuorigioco | varie |
+| modulo, allenatore, fase, giornata, stadio, arbitro | contesto della partita (modulo iniziale) |
+| tiri_contropiede, azioni_tiro_sca, contese_vinte | SCA = ultime 2 azioni offensive (passaggio riuscito, dribbling riuscito, fallo subito, tiro) prima di un tiro |
+| possessi, passaggi_per_possesso, sequenze_10_passaggi | stile di possesso |
+| lunghezza_media_passaggi_m, passaggi_avanti_pct, lanci_lunghi, passaggi_sotto_pressione | stile di passaggio |
+| momentum_5min | azioni nel terzo offensivo per intervalli di 5 minuti (separati da `;`) |
+| heatmap_tocchi_6x4, heatmap_pressioni_6x4, heatmap_difesa_6x4 | griglie 6×4 come per i giocatori |
 | dati_360, avversari_5m_medi_360, azioni_pressate_360_pct | solo partite 360: media avversari entro 5 yard da chi ha la palla, % azioni con ≥2 avversari vicini |
 
 ## output/giocatori.csv – una riga per giocatore per partita
@@ -53,6 +59,9 @@ Anagrafica: `player_id, giocatore, soprannome, maglia, ruolo` (ruolo iniziale), 
 | Colonna | Significato |
 |---|---|
 | gol, gol_np, assist, xg, npxg, xa | produzione offensiva; xa = somma xG dei tiri nati da un suo passaggio |
+| sca, gca | azioni che portano a un tiro / a un gol (vedi sopra) |
+| passaggi_avanti, passaggi_indietro, lunghezza_media_passaggi_m, contese_vinte | |
+| uscite, prese_alte, respinte_di_pugno | portieri |
 | xg_chain | xG totale dei possessi della squadra a cui ha partecipato |
 | tiri, tiri_in_porta, tocchi_in_area | |
 | passaggi, passaggi_riusciti, precisione_passaggi_pct | |
@@ -75,6 +84,10 @@ Per confronti tra giocatori conviene normalizzare per 90 minuti: `valore / minut
 
 Squadra, giocatore, periodo/minuto, `x, y`, `distanza_porta`, `xg`, `esito`, `gol`, `tipo` (Open Play, Penalty, Free Kick…), `parte_corpo`, `tecnica`, `azione` (tipo di azione), `primo_tocco`, `sotto_pressione`, `difensori_nel_triangolo` (difensori tra il tiratore e i pali), `portiere_dist_porta`, `assistman`, `fine_x/y/z` (punto di arrivo del tiro).
 Per la linea temporale degli xG: cumulare `xg` per squadra ordinando per periodo/minuto.
+
+## output/eventi_chiave.csv – cronaca
+
+Gol (anche su rigore e autogol), cartellini, sostituzioni (con motivo) e cambi di modulo, con minuto e squadra.
 
 ## output/rete_passaggi.csv – rete di passaggi
 

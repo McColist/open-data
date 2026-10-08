@@ -30,6 +30,12 @@ TEAM_ROWS = [
     ("Contrasti vinti", "contrasti_vinti", 0), ("Intercetti", "intercetti", 0), ("Duelli aerei vinti", "aerei_vinti", 0),
     ("Palle perse", "palle_perse", 0), ("Parate", "parate", 0), ("Corner", "corner", 0), ("Fuorigioco", "fuorigioco", 0),
     ("Falli", "falli", 0), ("Gialli", "gialli", 0), ("Rossi", "rossi", 0),
+    ("Tiri subiti", "tiri_subiti", 0), ("Azioni che portano al tiro (SCA)", "azioni_tiro_sca", 0),
+    ("Tiri da contropiede", "tiri_contropiede", 0), ("Possessi", "possessi", 0),
+    ("Passaggi per possesso", "passaggi_per_possesso", 2), ("Sequenze da 10+ passaggi", "sequenze_10_passaggi", 0),
+    ("Lunghezza media passaggi (m)", "lunghezza_media_passaggi_m", 1), ("Passaggi in avanti %", "passaggi_avanti_pct", 1),
+    ("Lanci lunghi", "lanci_lunghi", 0), ("Passaggi sotto pressione", "passaggi_sotto_pressione", 0),
+    ("Contese vinte (50/50)", "contese_vinte", 0),
     ("360: avversari entro 5 m dal portatore", "avversari_5m_medi_360", 2),
     ("360: azioni sotto pressione %", "azioni_pressate_360_pct", 1),
 ]
@@ -52,7 +58,13 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 .pl td{text-align:right;padding:3px 6px;border-bottom:1px solid var(--line)}.pl td:first-child,.pl th:first-child{text-align:left;position:sticky;left:0;background:var(--card)}
 .pl tr.sub td{color:var(--mute)}ul{margin:0;padding-left:18px}li{margin:3px 0}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-svg{display:block;width:100%;height:auto}.legend{font-size:12px;color:var(--mute);margin-top:6px}
+svg{display:block;width:100%;height:auto}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.tabs button{font:inherit;font-size:13px;padding:4px 10px;border-radius:14px;
+border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}.tabs button.on{background:var(--ink);color:var(--card)}
+.hidden{display:none}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media (max-width:760px){.grid3{grid-template-columns:1fr}}
+.tl td{padding:3px 6px;border-bottom:1px solid var(--line);vertical-align:top}.tl td.m{width:44px;text-align:right;color:var(--mute)}
+.st td,.st th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right}.st th{color:var(--mute);font-weight:600}.st td:first-child,.st th:first-child{text-align:left}
+.kv{display:flex;flex-wrap:wrap;gap:4px 18px;justify-content:center;margin-top:8px}.legend{font-size:12px;color:var(--mute);margin-top:6px}
 """
 
 
@@ -184,32 +196,182 @@ def mini_heat(spec, color):
             f'<rect width="48" height="32" fill="var(--pitch)"/>{cells}</svg>')
 
 
-PLAYER_COLS = [
-    ("Min", lambda p: f(p["minuti"], 0)), ("Gol", lambda p: p["gol"]), ("Ass", lambda p: p["assist"]),
-    ("xG", lambda p: f(p["xg"])), ("xA", lambda p: f(p["xa"])), ("xG chain", lambda p: f(p["xg_chain"])),
-    ("Tiri", lambda p: f'{p["tiri"]} ({p["tiri_in_porta"]})'), ("Pass", lambda p: f'{p["passaggi_riusciti"]}/{p["passaggi"]}'),
-    ("Pass %", lambda p: f(p["precisione_passaggi_pct"], 0)), ("P. chiave", lambda p: p["passaggi_chiave"]),
-    ("P. progr.", lambda p: p["passaggi_progressivi"]), ("In area", lambda p: p["passaggi_in_area"]),
-    ("Cond. progr.", lambda p: p["conduzioni_progressive"]), ("Metri progr.", lambda p: f(p["metri_progressivi"], 0)),
-    ("Dribbling", lambda p: f'{p["dribbling_riusciti"]}/{p["dribbling"]}'), ("Tocchi area", lambda p: p["tocchi_in_area"]),
-    ("Pressioni", lambda p: p["pressioni"]), ("Contrasti", lambda p: f'{p["contrasti_vinti"]}/{p["contrasti"]}'),
-    ("Intercetti", lambda p: p["intercetti"]), ("Recuperi", lambda p: p["recuperi"]),
-    ("Aerei", lambda p: f'{p["aerei_vinti"]}/{num(p["aerei_vinti"]) + num(p["aerei_persi"]):.0f}'),
-    ("Palle perse", lambda p: p["palle_perse"]), ("Falli", lambda p: p["falli_commessi"]),
-    ("Parate", lambda p: p["parate"]),
-]
+def heat_pitch(spec, color):
+    if not spec:
+        return ""
+    vals = [int(v) for v in spec.split(";")]
+    mx = max(vals) or 1
+    cells = "".join(f'<rect x="{(i % 6) * 20}" y="{(i // 6) * 20}" width="20" height="20" fill="{color}" '
+                    f'fill-opacity="{0.85 * v / mx:.2f}"><title>{v}</title></rect>' for i, v in enumerate(vals))
+    return pitch(cells)
 
 
-def player_table(players, color, has360):
-    cols = PLAYER_COLS + ([("Avv. 5m (360)", lambda p: f(p["avversari_5m_medi_360"]))] if has360 else [])
-    head = "<tr><th>Giocatore</th><th>Ruolo</th>" + "".join(f"<th>{c}</th>" for c, _ in cols) + "<th>Heatmap</th></tr>"
+def momentum_chart(T, teams):
+    series = [[int(v) for v in (T[t].get("momentum_5min") or "").split(";") if v != ""] for t in teams]
+    n = max(len(x) for x in series)
+    if not n:
+        return '<p class="sub">Dati non disponibili.</p>'
+    W, H, pad = 600, 180, 24
+    mx = max(max(x, default=0) for x in series) or 1
+    bw = (W - 2 * pad) / n
+    mid = H / 2
+    out = [f'<svg viewBox="0 0 {W} {H}" role="img"><line x1="{pad}" y1="{mid}" x2="{W - pad}" y2="{mid}" stroke="var(--line)"/>']
+    for i in range(n):
+        a = series[0][i] if i < len(series[0]) else 0
+        b = series[1][i] if i < len(series[1]) else 0
+        x = pad + i * bw
+        ha, hb = (mid - pad) * a / mx, (mid - pad) * b / mx
+        out.append(f'<rect x="{x + 1:.1f}" y="{mid - ha:.1f}" width="{bw - 2:.1f}" height="{ha:.1f}" fill="{COL[0]}">'
+                   f'<title>{i * 5}-{i * 5 + 5}\' {e(teams[0])}: {a}</title></rect>'
+                   f'<rect x="{x + 1:.1f}" y="{mid:.1f}" width="{bw - 2:.1f}" height="{hb:.1f}" fill="{COL[1]}">'
+                   f'<title>{i * 5}-{i * 5 + 5}\' {e(teams[1])}: {b}</title></rect>')
+        if i % 3 == 0:
+            out.append(f'<text x="{x:.1f}" y="{H - 4}" font-size="10" fill="var(--mute)">{i * 5}\'</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+SET_PIECE = {"From Corner", "From Free Kick", "From Throw In"}
+
+
+def situation(s):
+    if s["tipo"] == "Penalty":
+        return "Rigori"
+    if s["tipo"] in ("Free Kick", "Corner") or s["azione"] in SET_PIECE:
+        return "Palla inattiva"
+    if s["azione"] == "From Counter":
+        return "Contropiede"
+    return "Azione manovrata"
+
+
+def shot_breakdown(S, teams):
+    groups_ = [("Situazione", situation, ["Azione manovrata", "Contropiede", "Palla inattiva", "Rigori"]),
+               ("Parte del corpo", lambda s: {"Right Foot": "Destro", "Left Foot": "Sinistro", "Head": "Testa"}.get(s["parte_corpo"], "Altro"),
+                ["Destro", "Sinistro", "Testa", "Altro"])]
+    html_ = []
+    for title, fn, cats in groups_:
+        head = f"<tr><th>{title}</th>" + "".join(f'<th colspan="3" style="color:{COL[i]}">{e(t)}</th>' for i, t in enumerate(teams)) + "</tr>"
+        head += "<tr><th></th>" + "<th>Tiri</th><th>Gol</th><th>xG</th>" * 2 + "</tr>"
+        rows = []
+        for c in cats:
+            cells = []
+            for t in teams:
+                ss = [s for s in S if s["squadra"] == t and fn(s) == c]
+                cells.append(f'<td>{len(ss)}</td><td>{sum(int(s["gol"]) for s in ss)}</td><td>{sum(num(s["xg"]) for s in ss):.2f}</td>')
+            if any(s for s in S if fn(s) == c):
+                rows.append(f"<tr><td>{c}</td>{''.join(cells)}</tr>")
+        html_.append(f'<table class="st">{head}{"".join(rows)}</table>')
+    return '<div class="grid2">' + "".join(html_) + "</div>"
+
+
+ESITI = {"Goal": "Gol", "Saved": "Parato", "Saved To Post": "Parato (palo)", "Off T": "Fuori", "Post": "Palo",
+         "Blocked": "Murato", "Wayward": "Fuori di molto", "Saved Off Target": "Parato fuori"}
+
+
+def shot_table(S, teams):
     rows = []
-    for p in players:
-        card = " 🟥" if p["rossi"] != "0" else " 🟨" if p["gialli"] != "0" else ""
-        cls = "" if p["titolare"] == "1" else ' class="sub"'
-        rows.append(f'<tr{cls}><td>{e(p["maglia"] or "")} {e(short(p))}{card}</td><td style="text-align:left">{e(p["ruolo"])}</td>'
-                    + "".join(f"<td>{fn(p)}</td>" for _, fn in cols) + f"<td>{mini_heat(p['heatmap_6x4'], color)}</td></tr>")
+    for s in S:
+        c = COL[teams.index(s["squadra"])] if s["squadra"] in teams else "inherit"
+        g = ' style="font-weight:600"' if s["gol"] == "1" else ""
+        rows.append(f'<tr{g}><td><span class="dot" style="background:{c}"></span>{s["minuto"]}\'</td><td style="text-align:left">{e(s["giocatore"])}</td>'
+                    f'<td>{f(s["xg"])}</td><td style="text-align:left">{ESITI.get(s["esito"], e(s["esito"]))}</td><td>{f(s["distanza_porta"], 1)}</td>'
+                    f'<td style="text-align:left">{e(s["parte_corpo"])}</td><td style="text-align:left">{e(situation(s))}</td>'
+                    f'<td>{s["difensori_nel_triangolo"]}</td><td>{"sì" if s["sotto_pressione"] == "1" else ""}</td>'
+                    f'<td>{"sì" if s["primo_tocco"] == "1" else ""}</td><td style="text-align:left">{e(s["assistman"])}</td></tr>')
+    head = ("<tr><th>Min</th><th>Giocatore</th><th>xG</th><th>Esito</th><th>Dist. (yd)</th><th>Corpo</th><th>Situazione</th>"
+            "<th>Difensori davanti</th><th>Pressato</th><th>Al volo</th><th>Assist da</th></tr>")
     return f'<div class="scroll"><table class="pl">{head}{"".join(rows)}</table></div>'
+
+
+ICON = {"Gol": "⚽", "Gol su rigore": "⚽ (R)", "Autogol": "⚽ (AG)", "Giallo": "🟨", "Secondo giallo": "🟨🟥", "Rosso": "🟥",
+        "Sostituzione": "🔁", "Cambio modulo": "📐"}
+
+
+def timeline(K, teams):
+    if not K:
+        return '<p class="sub">Nessun evento.</p>'
+    rows = []
+    for k in K:
+        c = COL[teams.index(k["squadra"])] if k["squadra"] in teams else "inherit"
+        who = e(k["giocatore"])
+        rows.append(f'<tr><td class="m">{k["minuto"]}\'</td><td>{ICON.get(k["tipo"], "")} <span class="dot" style="background:{c}"></span>'
+                    f'<b>{e(k["tipo"])}</b> {who} <span class="sub">{e(k["dettaglio"])}</span></td></tr>')
+    return f'<table class="tl">{"".join(rows)}</table>'
+
+
+def combos(E, players, t, color):
+    names = {p["player_id"]: short(p) for p in players}
+    es = sorted([x for x in E if x["squadra"] == t], key=lambda x: -int(x["passaggi"]))[:6]
+    items = "".join(f'<li>{e(names.get(x["passatore_id"], x["passatore"]))} → {e(names.get(x["ricevente_id"], x["ricevente"]))}: '
+                    f'<b>{x["passaggi"]}</b></li>' for x in es)
+    return f'<h3><span class="dot" style="background:{color}"></span>{e(t)}</h3><ul>{items}</ul>'
+
+
+def g(p, k, d=None):
+    v = p.get(k, "")
+    return f(v, d) if d is not None else (v if v not in (None, "") else "–")
+
+
+def rv(p, a, b):
+    return f'{g(p, a)}/{g(p, b)}'
+
+
+PLAYER_TABS = {
+    "Attacco": [("Min", lambda p: f(p["minuti"], 0)), ("Gol", lambda p: g(p, "gol")), ("Ass", lambda p: g(p, "assist")),
+                ("xG", lambda p: g(p, "xg", 2)), ("npxG", lambda p: g(p, "npxg", 2)), ("xA", lambda p: g(p, "xa", 2)),
+                ("xG chain", lambda p: g(p, "xg_chain", 2)), ("SCA", lambda p: g(p, "sca")), ("GCA", lambda p: g(p, "gca")),
+                ("Tiri (porta)", lambda p: f'{g(p, "tiri")} ({g(p, "tiri_in_porta")})'), ("Tocchi area", lambda p: g(p, "tocchi_in_area")),
+                ("Dribbling", lambda p: rv(p, "dribbling_riusciti", "dribbling")), ("P. chiave", lambda p: g(p, "passaggi_chiave"))],
+    "Passaggi": [("Pass", lambda p: rv(p, "passaggi_riusciti", "passaggi")), ("%", lambda p: g(p, "precisione_passaggi_pct", 0)),
+                 ("Lungh. media m", lambda p: g(p, "lunghezza_media_passaggi_m", 1)), ("Avanti", lambda p: g(p, "passaggi_avanti")),
+                 ("Indietro", lambda p: g(p, "passaggi_indietro")), ("Progressivi", lambda p: g(p, "passaggi_progressivi")),
+                 ("Terzo finale", lambda p: g(p, "passaggi_terzo_finale")), ("In area", lambda p: g(p, "passaggi_in_area")),
+                 ("Chiave", lambda p: g(p, "passaggi_chiave")), ("Filtranti", lambda p: g(p, "filtranti")),
+                 ("Cambi gioco", lambda p: g(p, "cambi_gioco")), ("Lanci lunghi", lambda p: rv(p, "lanci_lunghi_riusciti", "lanci_lunghi")),
+                 ("Cross", lambda p: rv(p, "cross_riusciti", "cross")),
+                 ("Sotto pressione", lambda p: rv(p, "passaggi_sotto_pressione_riusciti", "passaggi_sotto_pressione"))],
+    "Possesso": [("Azioni con palla", lambda p: g(p, "azioni_con_palla")), ("Ricezioni", lambda p: g(p, "ricezioni")),
+                 ("Ric. terzo finale", lambda p: g(p, "ricezioni_terzo_finale")), ("Cond. progr.", lambda p: g(p, "conduzioni_progressive")),
+                 ("Cond. terzo finale", lambda p: g(p, "conduzioni_terzo_finale")), ("Cond. in area", lambda p: g(p, "conduzioni_in_area")),
+                 ("Metri progr.", lambda p: g(p, "metri_progressivi", 0)), ("Palle perse", lambda p: g(p, "palle_perse")),
+                 ("Falli subiti", lambda p: g(p, "falli_subiti")), ("360 avv. 5m", lambda p: g(p, "avversari_5m_medi_360", 2)),
+                 ("360 pressato %", lambda p: g(p, "azioni_pressate_360_pct", 0))],
+    "Difesa": [("Pressioni", lambda p: g(p, "pressioni")), ("Pr. alte", lambda p: g(p, "pressioni_alte")),
+               ("Contropr.", lambda p: g(p, "contropressioni")), ("Contrasti", lambda p: rv(p, "contrasti_vinti", "contrasti")),
+               ("Intercetti", lambda p: g(p, "intercetti")), ("Recuperi", lambda p: g(p, "recuperi")),
+               ("Rec. alti", lambda p: g(p, "recuperi_alti")), ("Respinte", lambda p: g(p, "respinte")), ("Blocchi", lambda p: g(p, "blocchi")),
+               ("Aerei", lambda p: f'{g(p, "aerei_vinti")}/{num(p.get("aerei_vinti")) + num(p.get("aerei_persi")):.0f}'),
+               ("Contese vinte", lambda p: g(p, "contese_vinte")), ("Saltato", lambda p: g(p, "saltato_da_avversario")),
+               ("Falli", lambda p: g(p, "falli_commessi"))],
+    "Portiere": [("Min", lambda p: f(p["minuti"], 0)), ("Parate", lambda p: g(p, "parate")), ("Gol subiti", lambda p: g(p, "gol_subiti_portiere")),
+                 ("Uscite", lambda p: g(p, "uscite")), ("Prese alte", lambda p: g(p, "prese_alte")), ("Pugni", lambda p: g(p, "respinte_di_pugno")),
+                 ("Pass", lambda p: rv(p, "passaggi_riusciti", "passaggi")), ("%", lambda p: g(p, "precisione_passaggi_pct", 0)),
+                 ("Lungh. media m", lambda p: g(p, "lunghezza_media_passaggi_m", 1)),
+                 ("Lanci lunghi", lambda p: rv(p, "lanci_lunghi_riusciti", "lanci_lunghi"))],
+}
+
+TAB_JS = """<script>document.querySelectorAll('.tabs').forEach(function(t){t.addEventListener('click',function(ev){
+var b=ev.target.closest('button');if(!b)return;var box=t.parentNode;t.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});
+box.querySelectorAll('[data-tab]').forEach(function(p){p.classList.toggle('hidden',p.dataset.tab!==b.dataset.tab)})})})</script>"""
+
+
+def player_tabs(players, color):
+    btn = "".join(f'<button class="{"on" if i == 0 else ""}" data-tab="{k}">{k}</button>' for i, k in enumerate(PLAYER_TABS))
+    panes = []
+    for i, (k, cols) in enumerate(PLAYER_TABS.items()):
+        ps = [p for p in players if p["ruolo"] == "Goalkeeper"] if k == "Portiere" else players
+        head = "<tr><th>Giocatore</th>" + ("<th>Ruolo</th>" if i == 0 else "") + "".join(f"<th>{c}</th>" for c, _ in cols) \
+            + ("<th>Heatmap</th>" if i == 0 else "") + "</tr>"
+        rows = []
+        for p in ps:
+            card = " 🟥" if p["rossi"] != "0" else " 🟨" if p["gialli"] != "0" else ""
+            cls = "" if p["titolare"] == "1" else ' class="sub"'
+            rows.append(f'<tr{cls}><td>{e(p["maglia"] or "")} {e(short(p))}{card}</td>'
+                        + (f'<td style="text-align:left">{e(p["ruolo"])}</td>' if i == 0 else "")
+                        + "".join(f"<td>{fn(p)}</td>" for _, fn in cols)
+                        + (f"<td>{mini_heat(p['heatmap_6x4'], color)}</td>" if i == 0 else "") + "</tr>")
+        panes.append(f'<div data-tab="{k}" class="scroll{"" if i == 0 else " hidden"}"><table class="pl">{head}{"".join(rows)}</table></div>')
+    return f'<div><div class="tabs">{btn}</div>{"".join(panes)}</div>'
 
 
 def top(players, key, n=1, minimum=0.0):
@@ -292,7 +454,7 @@ def summary(T, P, teams):
     return out, keys
 
 
-def report(T, P, S, E, teams):
+def report(T, P, S, E, K, teams):
     h, a = T[teams[0]], T[teams[1]]
     has360 = h.get("dati_360") == "1"
     text, keys = summary(T, P, teams)
@@ -314,25 +476,51 @@ def report(T, P, S, E, teams):
     nets = "".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>'
                    f'{pass_network(by_team[t], [x for x in E if x["squadra"] == t], COL[i])}</div>' for i, t in enumerate(teams))
     tables = "".join(f'<div class="card"><h2><span class="dot" style="background:{COL[i]}"></span>Giocatori – {e(t)}</h2>'
-                     f'{player_table(by_team[t], COL[i], has360)}</div>' for i, t in enumerate(teams))
+                     f'{player_tabs(by_team[t], COL[i])}</div>' for i, t in enumerate(teams))
+    heat = "".join(f'<div class="card"><h2><span class="dot" style="background:{COL[i]}"></span>Mappe di calore – {e(t)}</h2><div class="grid3">'
+                   + "".join(f'<div><h3>{lab}</h3>{heat_pitch(T[t].get(f"heatmap_{k}_6x4"), COL[i])}</div>'
+                             for k, lab in (("tocchi", "Azioni con palla"), ("pressioni", "Pressioni"), ("difesa", "Azioni difensive")))
+                   + '</div><div class="legend">La squadra attacca verso destra. Più scuro = più azioni.</div></div>'
+                   for i, t in enumerate(teams) if T[t].get("heatmap_tocchi_6x4"))
+    combo = "".join(f"<div>{combos(E, by_team[t], t, COL[i])}</div>" for i, t in enumerate(teams))
     return f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(title)} – Delta Scout</title><style>{CSS}</style></head><body><main>
 <p class="sub"><a href="index.html">← Tutte le partite</a></p>
 <div class="card"><h1>#{meta["n"]} · {e(meta["competizione"])} {e(meta["stagione"])} · {e(meta["data"])}</h1>
 <div class="score"><div class="t" style="color:{COL[0]}">{e(teams[0])}</div><div class="r">{h["gol"]} – {a["gol"]}</div>
 <div class="t" style="color:{COL[1]}">{e(teams[1])}</div></div>
-<div class="score sub"><div>xG {f(h["xg"])}</div><div></div><div>xG {f(a["xg"])}</div></div></div>
+<div class="score sub"><div>xG {f(h["xg"])}{mod(h)}{coach(h)}</div><div></div><div>xG {f(a["xg"])}{mod(a)}{coach(a)}</div></div>
+<div class="kv sub">{info_line(h)}</div></div>
 <div class="card"><h2>Analisi</h2><p>{" ".join(text)}</p><h3>Giocatori chiave</h3><ul>{"".join(f"<li>{k}</li>" for k in keys)}</ul></div>
 <div class="grid2"><div class="card"><h2>Statistiche di squadra</h2><table class="cmp">{"".join(rows)}</table></div>
 <div><div class="card"><h2>Andamento xG</h2>{xg_timeline(S, teams)}<div class="legend">{legend} · pallini = gol</div></div>
 <div class="card"><h2>Mappa dei tiri</h2>{shot_map(S, teams)}<div class="legend">{e(teams[0])} attacca a destra, {e(teams[1])} a sinistra ·
 dimensione = xG · pieno = gol · passa il mouse per i dettagli</div></div></div></div>
+<div class="grid2"><div class="card"><h2>Cronaca</h2>{timeline(K, teams)}</div>
+<div><div class="card"><h2>Momentum</h2>{momentum_chart(T, teams)}<div class="legend">{legend} · azioni nel terzo offensivo ogni 5 minuti</div></div>
+<div class="card"><h2>Combinazioni più frequenti</h2><div class="grid2">{combo}</div></div></div></div>
+<div class="card"><h2>Tiri per tipo</h2>{shot_breakdown(S, teams)}</div>
+<div class="card"><h2>Tutti i tiri</h2>{shot_table(S, teams)}</div>
 <div class="card"><h2>Rete di passaggi</h2><div class="grid2">{nets}</div><div class="legend">Posizione media dei giocatori,
 linee = almeno 3 passaggi riusciti (più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.</div></div>
+{heat}
 {tables}
 <p class="sub">Dati: StatsBomb Open Data · Report generato da Delta Scout. Righe in grigio = subentrati.
 Heatmap: azioni con palla, la squadra attacca verso destra.</p>
-</main></body></html>"""
+</main>{TAB_JS}</body></html>"""
+
+
+def mod(t):
+    return f' · {e(t["modulo"])}' if t.get("modulo") else ""
+
+
+def coach(t):
+    return f'<br>All. {e(t["allenatore"])}' if t.get("allenatore") else ""
+
+
+def info_line(t):
+    parts = [("Fase", t.get("fase")), ("Giornata", t.get("giornata")), ("Stadio", t.get("stadio")), ("Arbitro", t.get("arbitro"))]
+    return "".join(f"<span>{k}: {e(v)}</span>" for k, v in parts if v)
 
 
 def groups(path, wanted):
@@ -365,7 +553,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
 
     # i CSV sono ordinati per n: si leggono in parallelo, una partita alla volta (poca memoria)
-    iters = {k: groups(src / f"{k}.csv", wanted) for k in ("squadre", "giocatori", "tiri", "rete_passaggi")}
+    iters = {k: groups(src / f"{k}.csv", wanted) if (src / f"{k}.csv").exists() else iter(())
+             for k in ("squadre", "giocatori", "tiri", "rete_passaggi", "eventi_chiave")}
     pending = {k: next(it, None) for k, it in iters.items()}
 
     def take(k, n):
@@ -380,13 +569,13 @@ def main():
     while pending["squadre"]:
         n, T_rows = pending["squadre"]
         pending["squadre"] = next(iters["squadre"], None)
-        P, S, E = take("giocatori", n), take("tiri", n), take("rete_passaggi", n)
+        P, S, E, K = take("giocatori", n), take("tiri", n), take("rete_passaggi", n), take("eventi_chiave", n)
         home = next((r for r in T_rows if r["casa_trasferta"] == "casa"), T_rows[0])
         teams = [home["squadra"], home["avversario"]]
         T = {r["squadra"]: r for r in T_rows}
         if len(T) != 2:
             continue
-        (out / f"{n}.html").write_text(report(T, P, S, E, teams), encoding="utf-8")
+        (out / f"{n}.html").write_text(report(T, P, S, E, K, teams), encoding="utf-8")
         done.append((n, home, T[teams[1]]))
         if len(done) % 200 == 0:
             print(f"{len(done)} report…", flush=True)

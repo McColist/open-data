@@ -68,6 +68,11 @@ def load(path):
         return json.load(fh)
 
 
+def kev(base, e, tipo, giocatore, dettaglio):
+    return {**base, "periodo": e["period"], "minuto": e["minute"], "secondo": e["second"],
+            "squadra": e["team"]["name"], "tipo": tipo, "giocatore": giocatore, "dettaglio": dettaglio}
+
+
 def card_of(e):
     for k in ("foul_committed", "bad_behaviour"):
         c = e.get(k, {}).get("card")
@@ -157,6 +162,14 @@ def analyse(meta):
     chain = defaultdict(set)
     opp_near = defaultdict(lambda: [0, 0, 0])  # n eventi 360, somma avversari 5m, eventi con >=2 avversari
     team_near = defaultdict(lambda: [0, 0, 0])
+    formation, current_formation = {}, {}
+    poss_passes = defaultdict(int)  # (squadra, possesso) -> passaggi
+    max_min = max((e["minute"] for e in events), default=90)
+    momentum = {t: [0] * (max_min // 5 + 1) for t in teams}
+    heat_team = {t: {k: [0] * 24 for k in ("tocchi", "pressioni", "difesa")} for t in teams}
+    key_events = []
+    sca = defaultdict(lambda: [0, 0])  # giocatore -> [azioni che portano al tiro, ... al gol]
+    last_actions = defaultdict(list)  # (squadra, possesso) -> ultime azioni offensive
 
     for e in events:
         typ = e["type"]["name"]
@@ -172,6 +185,36 @@ def analyse(meta):
             info[key] = {"giocatore": pl["name"], "soprannome": "", "maglia": None,
                          "ruolo": e.get("position", {}).get("name", ""), "titolare": 0, "nazionalita": ""}
         loc = e.get("location")
+        if typ == "Starting XI":
+            formation[team] = str(e["tactics"].get("formation", ""))
+        elif typ == "Tactical Shift":
+            fm = str(e["tactics"].get("formation", ""))
+            prev = current_formation.get(team, formation.get(team, ""))
+            if fm != prev:  # solo veri cambi di modulo, non scambi di posizione
+                key_events.append(kev(base, e, "Cambio modulo", "", f'{"-".join(prev)} → {"-".join(fm)}'))
+                current_formation[team] = fm
+        elif typ == "Substitution":
+            key_events.append(kev(base, e, "Sostituzione", pl["name"],
+                                  f'entra {e["substitution"]["replacement"]["name"]}'
+                                  + (f' ({e["substitution"]["outcome"]["name"]})' if e["substitution"].get("outcome") else "")))
+        elif typ == "Own Goal Against":
+            key_events.append(kev(base, e, "Autogol", pl["name"] if pl else "", f"a favore di {opp}"))
+        if loc and typ in TOUCH_TYPES:
+            heat_team[team]["tocchi"][zone(loc)] += 1
+            if loc[0] >= 80:
+                momentum[team][e["minute"] // 5] += 1
+        if loc and typ in ("Duel", "Interception", "Ball Recovery", "Block", "Clearance"):
+            heat_team[team]["difesa"][zone(loc)] += 1
+        if e.get("possession_team", {}).get("name") == team and typ in ("Pass", "Dribble", "Foul Won", "Shot", "Carry"):
+            ok_action = (typ == "Pass" and "outcome" not in e["pass"]) or \
+                        (typ == "Dribble" and e["dribble"]["outcome"]["name"] == "Complete") or typ in ("Foul Won", "Shot")
+            if typ == "Shot":
+                g = e["shot"]["outcome"]["name"] == "Goal"
+                for k2 in last_actions[(team, e["possession"])][-2:]:
+                    sca[k2][0] += 1
+                    sca[k2][1] += g
+            if ok_action and key:
+                last_actions[(team, e["possession"])].append(key)
         if key and loc and typ in TOUCH_TYPES:
             ls = loc_sum[key]
             ls[0] += loc[0]; ls[1] += loc[1]; ls[2] += 1
@@ -202,6 +245,17 @@ def analyse(meta):
             ok = "outcome" not in ps
             end = ps.get("end_location", loc)
             t["passaggi"] += 1; P["passaggi"] += 1
+            poss_passes[(team, e["possession"])] += 1
+            t["_lunghezza_passaggi"] += ps.get("length", 0)
+            P["_lunghezza_passaggi"] += ps.get("length", 0)
+            if end[0] - loc[0] > 2:
+                P["passaggi_avanti"] += 1; t["passaggi_avanti"] += 1
+            elif end[0] - loc[0] < -2:
+                P["passaggi_indietro"] += 1
+            if e.get("under_pressure"):
+                t["passaggi_sotto_pressione"] += 1
+            if ps.get("length", 0) >= 32:
+                t["lanci_lunghi"] += 1
             if ok:
                 t["passaggi_riusciti"] += 1; P["passaggi_riusciti"] += 1
             if loc[0] >= 80 or end[0] >= 80:
@@ -274,7 +328,12 @@ def analyse(meta):
             t[f"xg_{e['period'] if e['period'] <= 2 else 'suppl'}t"] += xg
             if out in ("Goal", "Saved", "Saved To Post"):
                 t["tiri_in_porta"] += 1; P["tiri_in_porta"] += 1
+            if e.get("play_pattern", {}).get("name") == "From Counter":
+                t["tiri_contropiede"] += 1
             if out == "Goal":
+                key_events.append(kev(base, e, "Gol su rigore" if is_pen else "Gol", pl["name"],
+                                      f'xG {xg:.2f}' + (f', assist {by_id[sh["key_pass_id"]]["player"]["name"]}'
+                                                        if sh.get("key_pass_id") in by_id else "")))
                 P["gol"] += 1
                 if not is_pen:
                     P["gol_np"] += 1
@@ -305,6 +364,7 @@ def analyse(meta):
 
         elif typ == "Pressure":
             t["pressioni"] += 1; P["pressioni"] += 1
+            heat_team[team]["pressioni"][zone(loc)] += 1
             if loc[0] >= 80:
                 t["pressioni_alte"] += 1; P["pressioni_alte"] += 1
             if e.get("counterpress"):
@@ -321,6 +381,10 @@ def analyse(meta):
                     t["_azioni_difensive_ppda"] += 1
             elif dtype == "Aerial Lost":
                 P["aerei_persi"] += 1
+
+        elif typ == "50/50":
+            if e.get("50_50", {}).get("outcome", {}).get("name") in ("Won", "Success To Team"):
+                P["contese_vinte"] += 1; t["contese_vinte"] += 1
 
         elif typ == "Interception":
             P["intercetti"] += 1; t["intercetti"] += 1
@@ -371,9 +435,17 @@ def analyse(meta):
                 P["parate"] += 1; t["parate"] += 1
             if gtype == "Goal Conceded":
                 P["gol_subiti_portiere"] += 1
+            if gtype == "Keeper Sweeper":
+                P["uscite"] += 1
+            if gtype == "Collected":
+                P["prese_alte"] += 1
+            if gtype == "Punch":
+                P["respinte_di_pugno"] += 1
 
         c = card_of(e)
         if c and key:
+            key_events.append(kev(base, e, {"Yellow Card": "Giallo", "Second Yellow": "Secondo giallo"}.get(c, "Rosso"),
+                                  pl["name"], ""))
             if c == "Yellow Card":
                 P["gialli"] += 1; t["gialli"] += 1
             else:
@@ -399,6 +471,24 @@ def analyse(meta):
             v = t.get(k, 0)
             r[k] = round(v, 3) if isinstance(v, float) and not v.is_integer() else int(v)
         r["tiri_subiti"] = int(o["tiri"])
+        r["modulo"] = "-".join(formation.get(team, ""))
+        r["allenatore"] = meta["allenatori"].get(team, "")
+        for k in ("fase", "giornata", "stadio", "arbitro"):
+            r[k] = meta[k]
+        poss = [v for (pt, _), v in poss_passes.items() if pt == team]
+        r["possessi"] = len(poss)
+        r["passaggi_per_possesso"] = round(sum(poss) / len(poss), 2) if poss else 0
+        r["sequenze_10_passaggi"] = sum(1 for v in poss if v >= 10)
+        r["lunghezza_media_passaggi_m"] = round(t["_lunghezza_passaggi"] / t["passaggi"] * 0.9144, 1) if t["passaggi"] else 0
+        r["passaggi_avanti_pct"] = round(100 * t["passaggi_avanti"] / t["passaggi"], 1) if t["passaggi"] else 0
+        r["lanci_lunghi"] = int(t["lanci_lunghi"])
+        r["passaggi_sotto_pressione"] = int(t["passaggi_sotto_pressione"])
+        r["tiri_contropiede"] = int(t["tiri_contropiede"])
+        r["contese_vinte"] = int(t["contese_vinte"])
+        r["azioni_tiro_sca"] = sum(v[0] for (tm, _), v in sca.items() if tm == team)
+        r["momentum_5min"] = ";".join(map(str, momentum[team]))
+        for k in ("tocchi", "pressioni", "difesa"):
+            r[f"heatmap_{k}_6x4"] = ";".join(map(str, heat_team[team][k]))
         r["xg_diff"] = round(t["xg"] - o["xg"], 3)
         r["xg_per_tiro"] = round(t["xg"] / t["tiri"], 3) if t["tiri"] else 0
         r["precisione_passaggi_pct"] = round(100 * t["passaggi_riusciti"] / t["passaggi"], 1) if t["passaggi"] else 0
@@ -436,6 +526,11 @@ def analyse(meta):
                   "parate", "gol_subiti_portiere"):
             v = P.get(k, 0)
             r[k] = round(v, 4) if isinstance(v, float) and not v.is_integer() else int(v)
+        r["sca"] = sca[key][0] if key in sca else 0
+        r["gca"] = sca[key][1] if key in sca else 0
+        for k in ("passaggi_avanti", "passaggi_indietro", "contese_vinte", "uscite", "prese_alte", "respinte_di_pugno"):
+            r[k] = int(P.get(k, 0))
+        r["lunghezza_media_passaggi_m"] = round(P["_lunghezza_passaggi"] / P["passaggi"] * 0.9144, 1) if P.get("passaggi") else ""
         r["xg_chain"] = round(sum(poss_xg.get((p, team), 0.0) for p in chain.get(key, ())), 4)
         r["metri_progressivi"] = round(P.get("_dist_progressiva", 0.0) * 0.9144, 1)  # yard -> metri
         r["precisione_passaggi_pct"] = round(100 * P["passaggi_riusciti"] / P["passaggi"], 1) if P.get("passaggi") else ""
@@ -451,7 +546,7 @@ def analyse(meta):
     edge_rows = [{**base, "squadra": team, "passatore_id": a, "passatore": names.get((team, a), ""),
                   "ricevente_id": b, "ricevente": names.get((team, b), ""), "passaggi": c}
                  for (team, a, b), c in edges.items() if c >= 2]
-    return team_rows, player_rows, shots, edge_rows
+    return team_rows, player_rows, shots, edge_rows, key_events
 
 
 def parse_n(spec):
@@ -483,8 +578,18 @@ def load_matches(selected):
             metas.append({"n": int(r["n"]), "match_id": m["match_id"], "competizione": r["competizione"],
                           "stagione": r["stagione"], "data": r["data"],
                           "casa": m["home_team"]["home_team_name"], "trasferta": m["away_team"]["away_team_name"],
-                          "gol_casa": m["home_score"], "gol_trasferta": m["away_score"]})
+                          "gol_casa": m["home_score"], "gol_trasferta": m["away_score"],
+                          "fase": (m.get("competition_stage") or {}).get("name", ""),
+                          "giornata": m.get("match_week") or "",
+                          "stadio": (m.get("stadium") or {}).get("name", ""),
+                          "arbitro": (m.get("referee") or {}).get("name", ""),
+                          "allenatori": {m["home_team"]["home_team_name"]: managers(m["home_team"]),
+                                         m["away_team"]["away_team_name"]: managers(m["away_team"])}})
     return sorted(metas, key=lambda x: x["n"])
+
+
+def managers(team):
+    return ", ".join(x.get("nickname") or x["name"] for x in team.get("managers") or [])
 
 
 def write(path, rows):
@@ -511,14 +616,14 @@ def main():
     metas = load_matches(parse_n(args.n) if args.n else None)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    teams, players, shots, edges = [], [], [], []
+    teams, players, shots, edges, kevs = [], [], [], [], []
     errors = []
     with Pool(args.workers) as pool:
         for i, (meta, res) in enumerate(pool.imap_unordered(_safe, metas, chunksize=4), 1):
             if isinstance(res, str):
                 errors.append(f"{meta['n']} ({meta['match_id']}): {res}")
             elif res:
-                teams += res[0]; players += res[1]; shots += res[2]; edges += res[3]
+                teams += res[0]; players += res[1]; shots += res[2]; edges += res[3]; kevs += res[4]
             if i % 100 == 0 or i == len(metas):
                 print(f"{i}/{len(metas)} partite", file=sys.stderr, flush=True)
     key = lambda r: (r["n"], r["squadra"])
@@ -526,6 +631,7 @@ def main():
     write(out / "giocatori.csv", sorted(players, key=lambda r: (r["n"], r["squadra"], -r["minuti"])))
     write(out / "tiri.csv", sorted(shots, key=lambda r: (r["n"], r["periodo"], r["minuto"], r["secondo"])))
     write(out / "rete_passaggi.csv", sorted(edges, key=lambda r: (r["n"], r["squadra"], -r["passaggi"])))
+    write(out / "eventi_chiave.csv", sorted(kevs, key=lambda r: (r["n"], r["periodo"], r["minuto"], r["secondo"])))
     print(f"Fatto: {len(teams)//2} partite, {len(players)} righe giocatori, {len(shots)} tiri. Errori: {len(errors)}")
     for e in errors:
         print("  ", e)
