@@ -13,6 +13,8 @@ python delta_scout/elo.py                        # rating Elo delle squadre -> o
 python delta_scout/anagrafica.py                 # età, altezza, link Transfermarkt/FBref da Reep -> output/anagrafica_giocatori.csv
 python delta_scout/rose.py                       # rose complete (titolari, subentrati, riserve) -> output/rose.csv
 python delta_scout/classifiche.py                # classifiche di tutti i tempi -> classifiche.html + output/carriere_giocatori.csv
+python delta_scout/conduzioni.py                 # conduzioni significative -> output/conduzioni.csv (carry map)
+python delta_scout/passaggi.py                   # tutti i passaggi compressi -> output/passaggi/<n>.json.gz (mappe individuali)
 python delta_scout/report.py                     # report HTML di ogni partita in delta_scout/report/
 python delta_scout/report.py --n 778 --out C:\DeltaScout\report
 ```
@@ -115,6 +117,13 @@ modulo e cambi di modulo, titolari con ruoli, sostituzioni (minuto, motivo) e ri
 metrica (36 metriche: per 90', percentuali con minimo di tentativi, Gol − xG in carriera) e ricerca; sotto, i podi per ruolo.
 Il ruolo di un giocatore è quello in cui ha giocato più minuti. `output/carriere_giocatori.csv` contiene totali e valori per 90'
 di tutti i 9.884 giocatori.
+
+## Carry map e mappe individuali
+
+`output/conduzioni.csv`: conduzioni progressive, che entrano nel terzo finale o in area (inizio, fine, metri, xT, pressione).
+`output/passaggi/<n>.json.gz`: tutti i passaggi della partita (passatore, ricevente, coordinate, esito, minuto, flag:
+1 chiave, 2 assist, 4 progressivo, 8 cross, 16 in area, 32 palla inattiva).
+Nel report: carry map di squadra e, per ogni giocatore, passing map, palloni ricevuti e conduzioni (menu a tendina).
 
 ## output/tiri.csv – un tiro per riga
 

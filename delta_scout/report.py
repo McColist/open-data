@@ -9,7 +9,9 @@ Serve solo l'output di analizza.py (non i dati grezzi). Apri index.html nella ca
 """
 import argparse
 import csv
+import gzip
 import html
+import json
 import math
 from collections import defaultdict
 from itertools import groupby
@@ -190,12 +192,79 @@ def pass_network(players, edges, color):
         if pid not in vol:
             continue
         r = 1.6 + 2.2 * vol[pid] / vmax
-        label = p["maglia"] or short(p).split()[-1][:3]
+        label = pitch_name(p)
         out.append(f'<circle cx="{p["pos_media_x"]}" cy="{p["pos_media_y"]}" r="{r:.2f}" fill="{color}" stroke="var(--card)" stroke-width="0.4">'
                    f'<title>{e(short(p))}</title></circle>'
-                   f'<text x="{p["pos_media_x"]}" y="{num(p["pos_media_y"]) + 1:.1f}" font-size="2.6" fill="#fff" text-anchor="middle" '
-                   f'font-weight="600">{e(label)}</text>')
+                   f'<text x="{p["pos_media_x"]}" y="{num(p["pos_media_y"]) + r + 2.4:.1f}" font-size="2.5" fill="var(--ink)" text-anchor="middle" '
+                   f'font-weight="600" stroke="var(--pitch)" stroke-width="0.6" paint-order="stroke">{e(label)}</text>')
     return pitch("".join(out))
+
+
+def carry_map(C, team, color, names=None):
+    cs = [c for c in C if c["squadra"] == team]
+    if not cs:
+        return '<p class="sub">Nessuna conduzione significativa.</p>'
+    mx = max(max(num(c["xt"]) for c in cs), 0.01)
+    out = []
+    for c in sorted(cs, key=lambda c: num(c["xt"])):
+        k = max(num(c["xt"]), 0) / mx
+        w = 0.9 if c["in_area"] == "1" else 0.5
+        out.append(f'<g><title>{e(c["minuto"])}\' {e(c["giocatore"])} – {c["metri"]} m, xT {f(c["xt"], 3)}</title>'
+                   f'<line x1="{c["x"]}" y1="{c["y"]}" x2="{c["fine_x"]}" y2="{c["fine_y"]}" stroke="{color}" stroke-width="{w}" '
+                   f'stroke-opacity="{0.35 + 0.6 * k:.2f}" stroke-dasharray="1.2 0.6"/>'
+                   f'<circle cx="{c["fine_x"]}" cy="{c["fine_y"]}" r="{0.7 if c["in_area"] == "1" else 0.5}" fill="{color}"/></g>')
+    tot = defaultdict(lambda: [0, 0.0, 0.0, ""])
+    for c in cs:
+        t = tot[c["player_id"]]
+        t[0] += 1; t[1] += num(c["metri"]); t[2] += num(c["xt"]); t[3] = (names or {}).get(c["player_id"], c["giocatore"])
+    best = sorted(tot.values(), key=lambda t: -t[1])[:5]
+    lst = "".join(f"<li>{e(t[3])}: <b>{t[0]}</b> conduzioni, {t[1]:.0f} m, xT {t[2]:.2f}</li>" for t in best)
+    return pitch("".join(out)) + f'<ul class="sub" style="margin-top:6px">{lst}</ul>'
+
+
+INDIV_JS = """<script>(function(){var D=JSON.parse(document.getElementById('indiv-data').textContent);
+var sel=document.getElementById('indiv-p'),box=document.getElementById('indiv-map'),info=document.getElementById('indiv-info'),view='p';
+D.players.forEach(function(pl,i){var o=document.createElement('option');o.value=i;o.textContent=pl[1]+' – '+pl[2];sel.appendChild(o)});
+document.querySelectorAll('#indiv-tabs button').forEach(function(b){b.onclick=function(){view=b.dataset.v;
+document.querySelectorAll('#indiv-tabs button').forEach(function(x){x.classList.toggle('on',x===b)});draw()}});
+var best=0,bn=-1;D.players.forEach(function(pl,i){var k=D.passes.filter(function(p){return p[0]===pl[0]}).length;if(k>bn){bn=k;best=i}});
+sel.value=best;sel.onchange=draw;
+function L(x1,y1,x2,y2,c,w,o,d){return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+c+'" stroke-width="'+w+'" stroke-opacity="'+o+'"'+(d?' stroke-dasharray="'+d+'"':'')+'/>'}
+function C(x,y,r,c,o){return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+c+'" fill-opacity="'+(o||1)+'"/>'}
+function draw(){var pl=D.players[+sel.value],id=pl[0],col=D.col[pl[3]],g='',t;
+if(view==='p'){var ps=D.passes.filter(function(p){return p[0]===id}),ok=0,kp=0,pr=0,ar=0;
+ps.forEach(function(p){var key=p[8]&1,gold='#f2a900';if(p[6]){ok++;}if(key)kp++;if(p[8]&4)pr++;if(p[8]&16)ar++;
+g+=p[6]?L(p[2],p[3],p[4],p[5],key?gold:col,key?0.7:0.4,key?1:0.75)+C(p[4],p[5],key?0.9:0.55,key?gold:col):
+L(p[2],p[3],p[4],p[5],'#9aa3ad',0.35,0.6,'0.8 0.6')+C(p[4],p[5],0.45,'#9aa3ad',0.7)});
+t='<b>'+ps.length+'</b> passaggi · <b>'+ok+'</b> riusciti ('+(ps.length?Math.round(100*ok/ps.length):0)+'%) · <b>'+pr+'</b> progressivi · <b>'+ar+'</b> in area · <span style="color:#f2a900"><b>'+kp+'</b> chiave</span> · <span style="color:#9aa3ad">grigio = sbagliati</span>'}
+else if(view==='r'){var rs=D.passes.filter(function(p){return p[1]===id&&p[6]}),f3=0,ar2=0;
+rs.forEach(function(p){if(p[4]>=80)f3++;if(p[4]>=102&&p[5]>=18&&p[5]<=62)ar2++;g+=L(p[2],p[3],p[4],p[5],col,0.25,0.18)+C(p[4],p[5],0.9,col,0.75)});
+t='<b>'+rs.length+'</b> palloni ricevuti su passaggio · <b>'+f3+'</b> nel terzo finale · <b>'+ar2+'</b> in area · linee chiare = da dove arrivava il passaggio'}
+else{var cs=D.carries.filter(function(c){return c[0]===id}),m=0,x=0;
+cs.forEach(function(c){m+=c[5];x+=c[6];g+=L(c[1],c[2],c[3],c[4],col,c[7]?0.8:0.5,0.85,'1.2 0.6')+C(c[3],c[4],c[7]?0.8:0.55,col)});
+t='<b>'+cs.length+'</b> conduzioni significative (progressive, nel terzo finale o in area) · <b>'+Math.round(m)+'</b> m · xT <b>'+x.toFixed(2)+'</b>'}
+box.querySelector('.ind').innerHTML=g;info.innerHTML=t}
+draw()})()</script>"""
+
+
+def individual_maps(P, PS, C, teams):
+    players = [p for p in sorted(P, key=lambda p: (teams.index(p["squadra"]) if p["squadra"] in teams else 2,
+                                                       p["titolare"] != "1", -num(p["minuti"])))]
+    idx = {t: i for i, t in enumerate(teams)}
+    data = {"col": list(COL),
+            "players": [[int(p["player_id"]), short(p), p["squadra"], idx.get(p["squadra"], 0)] for p in players],
+            "passes": PS,
+            "carries": [[int(c["player_id"]), num(c["x"]), num(c["y"]), num(c["fine_x"]), num(c["fine_y"]), num(c["metri"]),
+                         num(c["xt"]), int(c["in_area"])] for c in C]}
+    js = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    tabs = ('<div class="tabs" id="indiv-tabs"><button class="on" data-v="p">Passing map</button>'
+            '<button data-v="r">Palloni ricevuti</button><button data-v="c">Conduzioni</button></div>')
+    svg = pitch('<g class="ind"></g>')
+    return (f'<div class="f" style="margin-bottom:10px"><label class="sub">Giocatore <select id="indiv-p" style="font:inherit;padding:4px 8px;'
+            f'border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)"></select></label></div>{tabs}'
+            f'<div id="indiv-map">{svg}</div><p class="sub" id="indiv-info" style="margin-top:6px"></p>'
+            f'<div class="legend">Il giocatore attacca sempre verso destra. Passa da un giocatore all\'altro con il menu.</div>'
+            f'<script type="application/json" id="indiv-data">{js}</script>{INDIV_JS}')
 
 
 def mini_heat(spec, color):
@@ -667,7 +736,7 @@ def initials(name):
     return "".join(w[0] for w in name.split()[:2]).upper()
 
 
-def report(T, P, S, E, K, teams, R=()):
+def report(T, P, S, E, K, teams, R=(), C=(), PS=None):
     nums = {r["player_id"]: r["maglia"] for r in R}
     for p in P:  # i numeri di rose.csv includono quelli recuperati quando la fonte riporta 0
         p["maglia"] = nums.get(p["player_id"], "" if p["maglia"] in ("0", "") else p["maglia"])
@@ -718,6 +787,9 @@ dimensione = xG · pieno = gol · passa il mouse per i dettagli</div></div></div
 <div class="card"><h2>Combinazioni più frequenti</h2><div class="grid2">{combo}</div></div></div></div>
 <div class="card"><h2>Tiri per tipo</h2>{shot_breakdown(S, teams)}</div>
 <div class="card"><h2>Tutti i tiri</h2>{shot_table(S, teams)}</div>
+<div class="card"><h2>Carry map – conduzioni palla</h2><div class="grid2">{"".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{carry_map(C, t, COL[i], {p["player_id"]: short(p) for p in P})}</div>' for i, t in enumerate(teams))}</div>
+<div class="legend">Conduzioni progressive, nel terzo finale o in area. Linea più intensa = più xT guadagnato; più spessa = entra in area. Entrambe attaccano a destra.</div></div>
+{f'<div class="card"><h2>Mappe individuali</h2>{individual_maps(P, PS, C, teams)}</div>' if PS is not None else ""}
 <div class="card"><h2>Rete di passaggi</h2><div class="grid2">{nets}</div><div class="legend">Posizione media dei giocatori,
 linee = almeno 3 passaggi riusciti (più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.</div></div>
 {heat}
@@ -782,7 +854,7 @@ def main():
 
     # i CSV sono ordinati per n: si leggono in parallelo, una partita alla volta (poca memoria)
     iters = {k: groups(src / f"{k}.csv", wanted) if (src / f"{k}.csv").exists() else iter(())
-             for k in ("squadre", "giocatori", "tiri", "rete_passaggi", "eventi_chiave", "rose")}
+             for k in ("squadre", "giocatori", "tiri", "rete_passaggi", "eventi_chiave", "rose", "conduzioni")}
     pending = {k: next(it, None) for k, it in iters.items()}
 
     def take(k, n):
@@ -799,12 +871,15 @@ def main():
         pending["squadre"] = next(iters["squadre"], None)
         P, S, E, K = take("giocatori", n), take("tiri", n), take("rete_passaggi", n), take("eventi_chiave", n)
         R = take("rose", n)
+        C = take("conduzioni", n)
+        pf = src / "passaggi" / f"{n}.json.gz"
+        PS = json.loads(gzip.decompress(pf.read_bytes()).decode("utf-8"))["p"] if pf.exists() else None
         home = next((r for r in T_rows if r["casa_trasferta"] == "casa"), T_rows[0])
         teams = [home["squadra"], home["avversario"]]
         T = {r["squadra"]: r for r in T_rows}
         if len(T) != 2:
             continue
-        (out / f"{n}.html").write_text(report(T, P, S, E, K, teams, R), encoding="utf-8")
+        (out / f"{n}.html").write_text(report(T, P, S, E, K, teams, R, C, PS), encoding="utf-8")
         done.append((n, home, T[teams[1]]))
         if len(done) % 200 == 0:
             print(f"{len(done)} report…", flush=True)
