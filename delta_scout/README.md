@@ -16,6 +16,7 @@ python delta_scout/classifiche.py                # classifiche di tutti i tempi 
 python delta_scout/sequenze.py                   # conduzioni (con esito) e recuperi palla -> output/conduzioni.csv, output/recuperi.csv
 python delta_scout/voti.py                       # voto Delta Scout 0-10 per giocatore e partita -> output/voti.csv
 python delta_scout/passaggi.py                   # tutti i passaggi compressi -> output/passaggi/<n>.json.gz (mappe individuali)
+python delta_scout/studi.py                      # studi sul dataset con grafici -> studi.html
 python delta_scout/report.py                     # report HTML di ogni partita in delta_scout/report/
 python delta_scout/report.py --n 778 --out C:\DeltaScout\report
 ```
@@ -127,6 +128,14 @@ di tutti i 9.884 giocatori.
 - `output/recuperi.csv`: recuperi palla, intercetti e contrasti vinti con esito nei 10 secondi successivi (tiro, gol, palla persa…).
 - Nel report: voto in formazione e tabelle, migliore in campo, scheda "Rispetto alla carriera" (valore per 90' / media in carriera),
   mappa del pressing, carry map con frecce, esito e filtri, reti di passaggi per tutta la partita e per ogni finestra tra i cambi, menu di navigazione.
+
+## Studi
+
+`studi.html`: 13 studi ricalcolati dai dati (epoche, Mondiali, maschile/femminile, portieri, gol olimpici, fattore campo,
+minuti dei gol, possesso, punti attesi 2015/16, Leicester, squadre dominanti, finalizzatori, vittorie improbabili). Ogni studio
+ha grafico, campione, metodo, limiti, tabella dei dati ed esportazione per i social. Gli studi basati sugli eventi escludono
+le partite in cui la fonte non contiene gli eventi di una delle due squadre (100 partite: ISL 2021/22, WSL 2019–21,
+Ligue 1 2015/16, NWSL 2018), riconosciute da 0 passaggi o da gol degli eventi diversi dal risultato.
 
 ## Pubblicare sui social
 

@@ -152,7 +152,7 @@ def main():
                                                     "pctmin": {k: v[1] for k, v in PCT_MIN.items()}, "rows": data},
                                                    ensure_ascii=False, separators=(",", ":")))
     from report import FAVICON, HEAD_EXTRA, PROTECT_JS, brand_bar, footer
-    page = (page.replace("__HEAD__", HEAD_EXTRA).replace("__BRAND__", brand_bar('<a href="index.html">Report partite</a>'))
+    page = (page.replace("__HEAD__", HEAD_EXTRA).replace("__BRAND__", brand_bar('<a href="index.html">Report partite</a> <a href="studi.html">Studi</a>'))
             .replace("__FOOTER__", footer()).replace("__PROTECT__", PROTECT_JS))
     (HERE / "classifiche.html").write_text(page, encoding="utf-8")
     print(f"{len(rows)} giocatori in output/carriere_giocatori.csv; {len(data)} con almeno 450' in classifiche.html")

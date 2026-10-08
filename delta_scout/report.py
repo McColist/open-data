@@ -145,7 +145,7 @@ def brand_bar(nav=""):
             f'<span>Delta Scout</span></a>{nav}</nav>')
 
 
-INDEX_NAV = '<a href="classifiche.html">Classifiche di tutti i tempi</a>'
+INDEX_NAV = '<a href="classifiche.html">Classifiche di tutti i tempi</a> <a href="studi.html">Studi</a>'
 
 
 def footer():
@@ -1337,8 +1337,9 @@ def main():
     (out / "vendor").mkdir(exist_ok=True)
     for v in (HERE / "vendor").glob("*"):
         (out / "vendor" / v.name).write_bytes(v.read_bytes())
-    if (HERE / "classifiche.html").exists():
-        (out / "classifiche.html").write_bytes((HERE / "classifiche.html").read_bytes())
+    for page in ("classifiche.html", "studi.html"):
+        if (HERE / page).exists():
+            (out / page).write_bytes((HERE / page).read_bytes())
 
     # i CSV sono ordinati per n: si leggono in parallelo, una partita alla volta (poca memoria)
     iters = {k: groups(src / f"{k}.csv", wanted) if (src / f"{k}.csv").exists() else iter(())
