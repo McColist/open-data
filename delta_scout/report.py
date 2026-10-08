@@ -188,16 +188,23 @@ def pass_network(players, edges, color):
         out.append(f'<line x1="{a["pos_media_x"]}" y1="{a["pos_media_y"]}" x2="{b["pos_media_x"]}" y2="{b["pos_media_y"]}" '
                    f'stroke="{color}" stroke-opacity="{0.15 + 0.6 * k:.2f}" stroke-width="{0.3 + 1.6 * k:.2f}">'
                    f'<title>{e(short(a))} → {e(short(b))}: {x["passaggi"]}</title></line>')
-    for pid, p in pos.items():
+    shown = []
+    for pid, p in sorted(pos.items(), key=lambda kv: -vol.get(kv[0], 0)):  # i cerchi piccoli sopra quelli grandi
         if pid not in vol:
             continue
-        r = 1.6 + 2.2 * vol[pid] / vmax
-        label = pitch_name(p)
-        out.append(f'<circle cx="{p["pos_media_x"]}" cy="{p["pos_media_y"]}" r="{r:.2f}" fill="{color}" stroke="var(--card)" stroke-width="0.4">'
-                   f'<title>{e(short(p))}</title></circle>'
-                   f'<text x="{p["pos_media_x"]}" y="{num(p["pos_media_y"]) + r + 2.4:.1f}" font-size="2.5" fill="var(--ink)" text-anchor="middle" '
-                   f'font-weight="600" stroke="var(--pitch)" stroke-width="0.6" paint-order="stroke">{e(label)}</text>')
-    return pitch("".join(out))
+        r = 2.3 + 1.9 * vol[pid] / vmax
+        label = p["maglia"] or initials(pitch_name(p))
+        shown.append((p, label))
+        out.append(f'<g><title>{e(short(p))}</title><circle cx="{p["pos_media_x"]}" cy="{p["pos_media_y"]}" r="{r:.2f}" fill="{color}" '
+                   f'stroke="var(--card)" stroke-width="0.4"/>'
+                   f'<text x="{p["pos_media_x"]}" y="{num(p["pos_media_y"]) + 0.9:.1f}" font-size="{2.6 if p["maglia"] else 2}" fill="#fff" '
+                   f'text-anchor="middle" font-weight="700">{e(label)}</text></g>')
+    # legenda numero -> giocatore, in ordine crescente di numero di maglia
+    shown.sort(key=lambda x: (not x[0]["maglia"], int(x[0]["maglia"]) if x[0]["maglia"].isdigit() else 0, short(x[0])))
+    legend = "".join(f'<li><b style="display:inline-block;min-width:22px;color:{color}">{e(lab)}</b>{e(short(p))}'
+                     f'<span class="sub"> · {vol[p["player_id"]]}</span></li>' for p, lab in shown)
+    return (f'<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start"><div style="flex:3 1 420px">{pitch("".join(out))}</div>'
+            f'<ul style="flex:1 1 200px;list-style:none;padding:0;margin:0;font-size:13px;line-height:1.75">{legend}</ul></div>')
 
 
 def carry_map(C, team, color, names=None):
@@ -790,8 +797,9 @@ dimensione = xG · pieno = gol · passa il mouse per i dettagli</div></div></div
 <div class="card"><h2>Carry map – conduzioni palla</h2><div class="grid2">{"".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{carry_map(C, t, COL[i], {p["player_id"]: short(p) for p in P})}</div>' for i, t in enumerate(teams))}</div>
 <div class="legend">Conduzioni progressive, nel terzo finale o in area. Linea più intensa = più xT guadagnato; più spessa = entra in area. Entrambe attaccano a destra.</div></div>
 {f'<div class="card"><h2>Mappe individuali</h2>{individual_maps(P, PS, C, teams)}</div>' if PS is not None else ""}
-<div class="card"><h2>Rete di passaggi</h2><div class="grid2">{nets}</div><div class="legend">Posizione media dei giocatori,
-linee = almeno 3 passaggi riusciti (più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.</div></div>
+<div class="card"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div><div class="legend">Posizione media dei giocatori,
+linee = almeno 3 passaggi riusciti (più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.
+Accanto: numero di maglia → giocatore, con i passaggi scambiati nella rete.</div></div>
 {heat}
 {tables}
 <p class="sub">Dati: StatsBomb Open Data · Report generato da Delta Scout. Righe in grigio = subentrati.
