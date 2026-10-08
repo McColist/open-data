@@ -11,6 +11,7 @@ python delta_scout/analizza.py --n 778,831-894   # solo alcuni numeri della list
 python delta_scout/xt.py                         # stima la griglia xT (xt_griglia.json), prima di analizza.py
 python delta_scout/elo.py                        # rating Elo delle squadre -> output/elo.csv
 python delta_scout/anagrafica.py                 # età, altezza, link Transfermarkt/FBref da Reep -> output/anagrafica_giocatori.csv
+python delta_scout/rose.py                       # rose complete (titolari, subentrati, riserve) -> output/rose.csv
 python delta_scout/report.py                     # report HTML di ogni partita in delta_scout/report/
 python delta_scout/report.py --n 778 --out C:\DeltaScout\report
 ```
@@ -99,6 +100,13 @@ Rating Elo pre e post partita per squadra (K=30, scarto gol, +60 in casa, 0 nei 
 Collegamento con [Reep](https://github.com/withqwerty/reep) (licenza CC0) per nome, nazionalità e data di nascita plausibile:
 `data_nascita, altezza_cm, ruolo, transfermarkt, fbref, wikidata, affidabilita`. Circa l'80% dei giocatori è collegato;
 i casi ambigui (omonimi) sono lasciati vuoti invece di rischiare un collegamento sbagliato.
+
+## output/rose.csv
+
+Tutti i convocati di ogni partita: `stato` (titolare / subentrato / non entrato), `maglia`, `ruolo_iniziale`,
+`ruoli` (sequenza dei ruoli occupati), `cartellini`. Nel report alimenta la grafica **Formazioni**: titolari a specchio
+nella posizione media reale (stile Sofascore), con gol, assist, cartellini e minuto di uscita, e sotto allenatore,
+modulo e cambi di modulo, titolari con ruoli, sostituzioni (minuto, motivo) e riserve non utilizzate.
 
 ## output/tiri.csv – un tiro per riga
 

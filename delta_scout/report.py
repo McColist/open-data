@@ -10,6 +10,7 @@ Serve solo l'output di analizza.py (non i dati grezzi). Apri index.html nella ca
 import argparse
 import csv
 import html
+import math
 from collections import defaultdict
 from itertools import groupby
 from pathlib import Path
@@ -496,7 +497,172 @@ def summary(T, P, teams):
     return out, keys
 
 
-def report(T, P, S, E, K, teams):
+ROLE_XY = {
+    "Goalkeeper": (5, 40), "Right Back": (32, 70), "Right Center Back": (24, 55), "Center Back": (24, 40),
+    "Left Center Back": (24, 25), "Left Back": (32, 10), "Right Wing Back": (48, 72), "Left Wing Back": (48, 8),
+    "Right Defensive Midfield": (42, 52), "Center Defensive Midfield": (42, 40), "Left Defensive Midfield": (42, 28),
+    "Right Midfield": (62, 72), "Right Center Midfield": (58, 54), "Center Midfield": (58, 40), "Left Center Midfield": (58, 26),
+    "Left Midfield": (62, 8), "Right Wing": (84, 70), "Right Attacking Midfield": (78, 55), "Center Attacking Midfield": (78, 40),
+    "Left Attacking Midfield": (78, 25), "Left Wing": (84, 10), "Right Center Forward": (98, 52), "Center Forward": (100, 40),
+    "Left Center Forward": (98, 28), "Secondary Striker": (90, 40),
+}
+
+
+def pitch_name(r):
+    nick = r.get("soprannome")
+    toks = (nick or r["giocatore"]).split()
+    if nick and len(toks) > 1:
+        return " ".join(toks[1:])
+    return toks[-1] if toks else ""
+
+
+def sub_events(K, team):
+    """{nome uscito: (minuto, nome entrato, motivo)} dalla cronaca."""
+    out = {}
+    for k in K:
+        if k["squadra"] == team and k["tipo"] == "Sostituzione":
+            d = k["dettaglio"].removeprefix("entra ")
+            motivo = ""
+            if d.endswith(")") and " (" in d:
+                d, motivo = d[:-1].rsplit(" (", 1)
+            out[k["giocatore"]] = (k["minuto"], d, motivo)
+    return out
+
+
+def card_minutes(K, team):
+    out = defaultdict(list)
+    for k in K:
+        if k["squadra"] == team and k["tipo"] in ("Giallo", "Secondo giallo", "Rosso"):
+            out[k["giocatore"]].append((k["tipo"], k["minuto"]))
+    return out
+
+
+def goal_minutes(K, team):
+    out = defaultdict(list)
+    for k in K:
+        if k["squadra"] == team and k["tipo"] in ("Gol", "Gol su rigore"):
+            out[k["giocatore"]].append(k["minuto"] + ("' (R)" if k["tipo"] == "Gol su rigore" else "'"))
+    return out
+
+
+def spread(pts):
+    """Porta le posizioni medie nella propria metà (5-49 x 7-73), mantenendo l'ordine, e separa i giocatori sovrapposti."""
+    if not pts:
+        return
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    for p in pts:
+        p[0] = 5 + 44 * (p[0] - x0) / (x1 - x0 or 1)
+        p[1] = 7 + 66 * (p[1] - y0) / (y1 - y0 or 1)
+    for _ in range(60):
+        moved = False
+        for a in range(len(pts)):
+            for b in range(a + 1, len(pts)):
+                dx, dy = pts[b][0] - pts[a][0], pts[b][1] - pts[a][1]
+                d = math.hypot(dx / 1.5, dy)
+                if d < 9:
+                    if d == 0:
+                        dx, dy, d = 0.0, 1.0, 1.0
+                    k = (9 - d) / 2 / d
+                    pts[a][0] -= dx * k * 0.7; pts[a][1] -= dy * k
+                    pts[b][0] += dx * k * 0.7; pts[b][1] += dy * k
+                    moved = True
+        for p in pts:
+            p[0] = min(max(p[0], 4), 51)
+            p[1] = min(max(p[1], 6), 74)
+        if not moved:
+            break
+
+
+def lineups(T, P, R, K, teams):
+    by_id = {p["player_id"]: p for p in P}
+    marks = []
+    for i, t in enumerate(teams):
+        c = COL[i]
+        subs = sub_events(K, t)
+        cards = card_minutes(K, t)
+        xi = [r for r in R if r["squadra"] == t and r["stato"] == "titolare"]
+        pts = []
+        for r in xi:
+            p = by_id.get(r["player_id"], {})
+            if p.get("pos_media_x"):
+                pts.append([num(p["pos_media_x"]), num(p["pos_media_y"])])
+            else:
+                pts.append(list(ROLE_XY.get(r["ruolo_iniziale"], (60, 40))))
+        spread(pts)
+        for r, (x, y) in zip(xi, pts):
+            p = by_id.get(r["player_id"], {})
+            if i == 1:  # la trasferta occupa l'altra metà, ruotata di 180°
+                x, y = 120 - x, 80 - y
+            badges = []
+            gl = int(num(p.get("gol")))
+            if gl:
+                badges.append(f'<text x="{x + 2.6:.1f}" y="{y - 2.2:.1f}" font-size="2.8">⚽{"" if gl == 1 else f"×{gl}"}</text>')
+            if num(p.get("assist")):
+                badges.append(f'<circle cx="{x - 3:.1f}" cy="{y - 2.6:.1f}" r="1.3" fill="var(--card)" stroke="{c}" stroke-width="0.3"/>'
+                              f'<text x="{x - 3:.1f}" y="{y - 2.0:.1f}" font-size="1.7" text-anchor="middle" fill="{c}" font-weight="700">A</text>')
+            cs = cards.get(r["giocatore"], [])
+            if cs:
+                col = "#d33" if any(t_ != "Giallo" for t_, _ in cs) else "#f2c200"
+                badges.append(f'<rect x="{x + 2.4:.1f}" y="{y + 0.4:.1f}" width="1.5" height="2.1" rx="0.2" fill="{col}"/>')
+            sub = subs.get(r["giocatore"])
+            name = e(pitch_name(r))
+            sub_txt = (f'<text x="{x:.1f}" y="{y + 8.3:.1f}" font-size="2" fill="#d33" text-anchor="middle" '
+                       f'stroke="var(--pitch)" stroke-width="0.5" paint-order="stroke">▼ {sub[0]}\'</text>') if sub else ""
+            tip = f'{r["giocatore"]} – {r["ruolo_iniziale"]}' + (f' – xT {f(p.get("xt"))}, xG {f(p.get("xg"))}' if p else "")
+            marks.append(
+                f'<g><title>{e(tip)}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{c}" stroke="var(--card)" stroke-width="0.5"/>'
+                f'<text x="{x:.1f}" y="{y + 1.1:.1f}" font-size="2.9" fill="#fff" text-anchor="middle" font-weight="700">{e(r["maglia"])}</text>'
+                f'<text x="{x:.1f}" y="{y + 5.6:.1f}" font-size="2.3" fill="var(--ink)" text-anchor="middle" '
+                f'stroke="var(--pitch)" stroke-width="0.6" paint-order="stroke">{name}</text>{sub_txt}{"".join(badges)}</g>')
+    head = "".join(f'<div style="text-align:{"left" if i == 0 else "right"}"><span class="dot" style="background:{COL[i]}"></span>'
+                   f'<b>{e(t)}</b> <span class="sub">{e(T[t].get("modulo") or "")}</span></div>' for i, t in enumerate(teams))
+    lists = "".join(f"<div>{bench(T[t], R, K, t, COL[i])}</div>" for i, t in enumerate(teams))
+    return (f'<div class="grid2" style="margin-bottom:8px">{head}</div>{pitch("".join(marks))}'
+            f'<div class="legend">Posizione media reale dei titolari (tutte le azioni con palla), ogni squadra nella propria metà · '
+            f'⚽ gol · A assist · cartellino · ▼ minuto di uscita · passa il mouse per ruolo, xT e xG</div>'
+            f'<div class="grid2" style="margin-top:12px">{lists}</div>')
+
+
+def bench(t, R, K, team, color):
+    subs = sub_events(K, team)
+    cards = card_minutes(K, team)
+    goals = goal_minutes(K, team)
+    rows = {r["giocatore"]: r for r in R if r["squadra"] == team}
+    def tag(name):
+        out = "".join(f' ⚽{m}' for m in goals.get(name, []))
+        out += "".join(f' {"🟨" if c == "Giallo" else "🟥"}{m}\'' for c, m in cards.get(name, []))
+        return out
+    def label(name):
+        r = rows.get(name)
+        return f'{e(r["maglia"])} {e(r.get("soprannome") or r["giocatore"])}' if r else e(name)
+    items = []
+    for off, (minute, on, motivo) in sorted(subs.items(), key=lambda x: int(x[1][0])):
+        why = {"Tactical": "", "Injury": " – infortunio"}.get(motivo, f" – {motivo}" if motivo else "")
+        role = rows.get(on, {}).get("ruoli", "")
+        items.append(f'<li><span class="sub">{minute}\'</span> <span style="color:#2a9d4a">▲</span> <b>{label(on)}</b>{tag(on)} '
+                     f'<span style="color:#d33">▼</span> {label(off)}<span class="sub">{why}{f" · {e(role)}" if role else ""}</span></li>')
+    unused = [r for r in R if r["squadra"] == team and r["stato"] == "non entrato"]
+    xi = [r for r in R if r["squadra"] == team and r["stato"] == "titolare"]
+    shifts = [k for k in K if k["squadra"] == team and k["tipo"] == "Cambio modulo"]
+    out = [f'<h3><span class="dot" style="background:{color}"></span>{e(team)}</h3>']
+    if t.get("allenatore"):
+        out.append(f'<p style="margin:0 0 6px"><b>Allenatore:</b> {e(t["allenatore"])}</p>')
+    if t.get("modulo"):
+        ch = "".join(f'; {k["minuto"]}\' {e(k["dettaglio"])}' for k in shifts)
+        out.append(f'<p style="margin:0 0 6px"><b>Modulo:</b> {e(t["modulo"])}<span class="sub">{ch}</span></p>')
+    out.append('<p style="margin:0 0 4px"><b>Titolari:</b></p><ul class="sub" style="margin-bottom:8px">'
+               + "".join(f'<li><span style="color:var(--ink)">{label(r["giocatore"])}</span>{tag(r["giocatore"])} · {e(r["ruoli"])}</li>' for r in xi)
+               + "</ul>")
+    if items:
+        out.append(f'<p style="margin:0 0 4px"><b>Sostituzioni:</b></p><ul style="margin-bottom:8px">{"".join(items)}</ul>')
+    if unused:
+        out.append('<p style="margin:0 0 4px"><b>Riserve non utilizzate:</b></p><p class="sub" style="margin:0">'
+                   + ", ".join(f'{e(r["maglia"])} {e(r.get("soprannome") or r["giocatore"])}' for r in unused) + "</p>")
+    return "".join(out)
+
+
+def report(T, P, S, E, K, teams, R=()):
     h, a = T[teams[0]], T[teams[1]]
     has360 = h.get("dati_360") == "1"
     text, keys = summary(T, P, teams)
@@ -534,6 +700,7 @@ def report(T, P, S, E, K, teams):
 <div class="score sub"><div>xG {f(h["xg"])}{mod(h)}{coach(h)}</div><div></div><div>xG {f(a["xg"])}{mod(a)}{coach(a)}</div></div>
 <div class="kv sub">{info_line(h)}</div></div>
 <div class="card"><h2>Analisi</h2><p>{" ".join(text)}</p><h3>Giocatori chiave</h3><ul>{"".join(f"<li>{k}</li>" for k in keys)}</ul></div>
+{f'<div class="card"><h2>Formazioni</h2>{lineups(T, P, R, K, teams)}</div>' if R else ""}
 <div class="grid2"><div class="card"><h2>Statistiche di squadra</h2><table class="cmp">{"".join(rows)}</table></div>
 <div><div class="card"><h2>Andamento xG</h2>{xg_timeline(S, teams)}<div class="legend">{legend} · pallini = gol</div></div>
 <div class="card"><h2>Mappa dei tiri</h2>{shot_map(S, teams)}<div class="legend">{e(teams[0])} attacca a destra, {e(teams[1])} a sinistra ·
@@ -607,7 +774,7 @@ def main():
 
     # i CSV sono ordinati per n: si leggono in parallelo, una partita alla volta (poca memoria)
     iters = {k: groups(src / f"{k}.csv", wanted) if (src / f"{k}.csv").exists() else iter(())
-             for k in ("squadre", "giocatori", "tiri", "rete_passaggi", "eventi_chiave")}
+             for k in ("squadre", "giocatori", "tiri", "rete_passaggi", "eventi_chiave", "rose")}
     pending = {k: next(it, None) for k, it in iters.items()}
 
     def take(k, n):
@@ -623,12 +790,13 @@ def main():
         n, T_rows = pending["squadre"]
         pending["squadre"] = next(iters["squadre"], None)
         P, S, E, K = take("giocatori", n), take("tiri", n), take("rete_passaggi", n), take("eventi_chiave", n)
+        R = take("rose", n)
         home = next((r for r in T_rows if r["casa_trasferta"] == "casa"), T_rows[0])
         teams = [home["squadra"], home["avversario"]]
         T = {r["squadra"]: r for r in T_rows}
         if len(T) != 2:
             continue
-        (out / f"{n}.html").write_text(report(T, P, S, E, K, teams), encoding="utf-8")
+        (out / f"{n}.html").write_text(report(T, P, S, E, K, teams, R), encoding="utf-8")
         done.append((n, home, T[teams[1]]))
         if len(done) % 200 == 0:
             print(f"{len(done)} report…", flush=True)
