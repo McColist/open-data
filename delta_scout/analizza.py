@@ -96,8 +96,11 @@ def analyse(meta):
     frames = {}
     p360 = DATA / "three-sixty" / f"{mid}.json"
     if p360.exists():
-        for f in load(p360):
-            frames[f["event_uuid"]] = f
+        try:
+            for f in load(p360):
+                frames[f["event_uuid"]] = f
+        except json.JSONDecodeError:
+            frames = {}  # file 360 corrotto nei dati sorgente (es. 3845506): analisi senza 360
 
     # --- anagrafica dai lineup, minuti dagli eventi -----------------------
     players = defaultdict(new_player)
