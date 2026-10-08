@@ -302,15 +302,11 @@ def first_sub(K, team):
     return min(m) if m else None
 
 
-def network_until_sub(PS, players, team, K, color):
-    """Rete di passaggi standard: solo fino al primo cambio (o espulsione), posizione media da passaggi e ricezioni."""
-    info = {int(p["player_id"]): p for p in players if p["squadra"] == team}
-    cut = first_sub(K, team)
-    lim = cut if cut is not None else 999
+def network_window(PS, info, t0, t1, min_pass):
     pos = defaultdict(lambda: [0.0, 0.0, 0])
     cnt = defaultdict(int)
     for q in PS:
-        if q[0] not in info or q[7] >= lim:
+        if q[0] not in info or not (t0 <= q[7] < t1):
             continue
         a = pos[q[0]]
         a[0] += q[2]; a[1] += q[3]; a[2] += 1
@@ -319,11 +315,42 @@ def network_until_sub(PS, players, team, K, color):
             b[0] += q[4]; b[1] += q[5]; b[2] += 1
             cnt[(q[0], q[1])] += 1
     pts = {pid: (v[0] / v[2], v[1] / v[2]) for pid, v in pos.items() if v[2] >= 3}
-    es = [(a, b, c) for (a, b), c in cnt.items() if c >= 2 and a in pts and b in pts]
-    if not es:
-        return '<p class="sub">Dati insufficienti.</p>'
-    return render_network(pts, es, info, color,
-                          f"Prima del primo cambio ({cut}')" if cut is not None else "Tutta la partita (nessun cambio)")
+    es = [(x, y, c) for (x, y), c in cnt.items() if c >= min_pass and x in pts and y in pts]
+    return pts, es
+
+
+def network_windows(PS, players, team, K, color):
+    """Rete di passaggi per ogni finestra tra un cambio e l'altro (o espulsione) + rete di tutta la partita."""
+    info = {int(p["player_id"]): p for p in players if p["squadra"] == team}
+    end = max([q[7] for q in PS] + [90]) + 1
+    cuts = sorted({int(k["minuto"]) for k in K if k["squadra"] == team and k["tipo"] in ("Sostituzione", "Rosso", "Secondo giallo")})
+    bounds = [0]
+    for c in cuts:  # cambi a pochi minuti di distanza diventano un'unica finestra
+        if c - bounds[-1] >= 5 and end - c >= 5:
+            bounds.append(c)
+    bounds.append(end)
+    wins = [("tutta", "Tutta la partita", 0, end, 3,
+             "Tutta la partita: titolari e subentrati insieme, quindi chi ha giocato nella stessa zona può sovrapporsi.")]
+    for i in range(len(bounds) - 1):
+        t0, t1 = bounds[i], bounds[i + 1]
+        label = f"{t0}'–{t1 - 1}'" if i < len(bounds) - 2 else f"{t0}'–fine"
+        note = ("Fino al primo cambio: gli 11 di partenza." if i == 0 and len(bounds) > 2 else
+                "Nessun cambio: rete unica." if len(bounds) == 2 else f"Dal cambio del {t0}' al successivo.")
+        wins.append((f"w{i}", label, t0, t1, 2, note))
+    if len(bounds) == 2:
+        wins = wins[:1]
+    btns, panes = [], []
+    for j, (wid, label, t0, t1, mp, note) in enumerate(wins):
+        pts, es = network_window(PS, info, t0, t1, mp)
+        body = render_network(pts, es, info, color, note) if es else f'<p class="sub">{e(note)} Pochi passaggi in questa finestra.</p>'
+        btns.append(f'<button data-v="{wid}" class="{"on" if j == 0 else ""}">{e(label)}</button>')
+        panes.append(f'<div data-w="{wid}"{"" if j == 0 else " hidden"}>{body}</div>')
+    return f'<div class="nw"><div class="flt"><span>Periodo</span>{"".join(btns)}</div>{"".join(panes)}</div>'
+
+
+NET_JS = """<script>document.querySelectorAll('.nw').forEach(function(n){n.querySelectorAll('.flt button').forEach(function(b){b.onclick=function(){
+n.querySelectorAll('.flt button').forEach(function(x){x.classList.toggle('on',x===b)});
+n.querySelectorAll('[data-w]').forEach(function(p){p.hidden=p.dataset.w!==b.dataset.v})}})})</script>"""
 
 
 def render_network(pts, es, info, color, note):
@@ -1138,7 +1165,7 @@ def report(T, P, S, E, K, teams, R=(), C=(), PS=None, RG=()):
     title = f'{teams[0]} {h["gol"]}-{a["gol"]} {teams[1]}'
     legend = "".join(f'<span class="dot" style="background:{COL[i]}"></span>{e(t)} &nbsp; ' for i, t in enumerate(teams))
     nets = "".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>'
-                   + (network_until_sub(PS, P, t, K, COL[i]) if PS is not None else
+                   + (network_windows(PS, P, t, K, COL[i]) if PS is not None else
                       pass_network(by_team[t], [x for x in E if x["squadra"] == t], COL[i])) + '</div>' for i, t in enumerate(teams))
     press = "".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{pressing_map(RG, t, COL[i], P)}</div>'
                     for i, t in enumerate(teams))
@@ -1193,14 +1220,15 @@ Entrambe le squadre attaccano verso destra · passa il mouse su una conduzione p
 <div class="legend">Recuperi palla, intercetti vinti e contrasti vinti. Entrambe le squadre attaccano verso destra: più punti a destra = pressing più alto.
 La barra sotto il campo conta i recuperi per terzo di campo.</div></div>
 {f'<div class="card" id="individuali"><h2>Mappe individuali</h2>{individual_maps(P, PS, C, teams)}</div>' if PS is not None else ""}
-<div class="card" id="rete"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div>{leg((sw_dot("var(--mute)", True, 2.5), "poco coinvolto"), (sw_dot("var(--mute)", True, 5), "molto coinvolto"), (sw_line("var(--mute)", 0.8, "", 0.4), "pochi passaggi"), (sw_line("var(--mute)", 3), "molti passaggi"))}<div class="legend">Come negli strumenti professionali, la rete considera solo il periodo prima del primo cambio (o espulsione), così ogni
-cerchio è un giocatore realmente in campo nello stesso momento. Posizione media di passaggi e ricezioni; linee = almeno 2 passaggi riusciti
-(più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.
+<div class="card" id="rete"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div>{leg((sw_dot("var(--mute)", True, 2.5), "poco coinvolto"), (sw_dot("var(--mute)", True, 5), "molto coinvolto"), (sw_line("var(--mute)", 0.8, "", 0.4), "pochi passaggi"), (sw_line("var(--mute)", 3), "molti passaggi"))}<div class="legend">Scegli il periodo: tutta la partita (titolari e subentrati insieme, possibili sovrapposizioni) oppure ogni finestra
+tra un cambio e l'altro, dove ogni cerchio è un giocatore realmente in campo in quel momento (cambi a meno di 5 minuti di distanza sono uniti).
+Posizione media di passaggi e ricezioni; linee = passaggi riusciti tra due giocatori (almeno 3 nella partita intera, 2 nelle finestre),
+più spesse = più passaggi; cerchi più grandi = più coinvolti. Entrambe attaccano a destra.
 Accanto: numero di maglia → giocatore, con i passaggi scambiati nella rete.</div></div>
 {heat}
 {tables}
 {footer()}
-</main>{TAB_JS}{PROTECT_JS}</body></html>"""
+</main>{TAB_JS}{NET_JS}{PROTECT_JS}</body></html>"""
 
 
 def mod(t):

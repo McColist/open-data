@@ -126,7 +126,7 @@ di tutti i 9.884 giocatori.
   Scala centrata su 6,6 e compressa agli estremi. È un indice di Delta Scout, non una verità oggettiva.
 - `output/recuperi.csv`: recuperi palla, intercetti e contrasti vinti con esito nei 10 secondi successivi (tiro, gol, palla persa…).
 - Nel report: voto in formazione e tabelle, migliore in campo, scheda "Rispetto alla carriera" (valore per 90' / media in carriera),
-  mappa del pressing, carry map con frecce, esito e filtri, rete di passaggi fino al primo cambio, menu di navigazione.
+  mappa del pressing, carry map con frecce, esito e filtri, reti di passaggi per tutta la partita e per ogni finestra tra i cambi, menu di navigazione.
 
 ## Logo, copyright e protezione
 
