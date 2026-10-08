@@ -209,26 +209,53 @@ def pass_network(players, edges, color):
             f'<ul style="flex:1 1 200px;list-style:none;padding:0;margin:0;font-size:13px;line-height:1.75">{legend}</ul></div>')
 
 
-def carry_map(C, team, color, names=None):
+CARRY_CLS = [("bassa", "#aab3bd", 0.5), ("media", "#f2a900", 0.75), ("alta", "#d6336c", 1.05)]
+
+
+def carry_class(c):
+    x = num(c["xt"])
+    if x >= 0.03 or c["in_area"] == "1":
+        return 2
+    return 1 if x >= 0.01 else 0
+
+
+def carry_map(C, team, color, players):
     cs = [c for c in C if c["squadra"] == team]
     if not cs:
         return '<p class="sub">Nessuna conduzione significativa.</p>'
-    mx = max(max(num(c["xt"]) for c in cs), 0.01)
+    info = {p["player_id"]: p for p in players}
+    lab = lambda pid: (info.get(pid, {}).get("maglia") or initials(pitch_name(info[pid]))) if pid in info else "?"
     out = []
-    for c in sorted(cs, key=lambda c: num(c["xt"])):
-        k = max(num(c["xt"]), 0) / mx
-        w = 0.9 if c["in_area"] == "1" else 0.5
-        out.append(f'<g><title>{e(c["minuto"])}\' {e(c["giocatore"])} – {c["metri"]} m, xT {f(c["xt"], 3)}</title>'
-                   f'<line x1="{c["x"]}" y1="{c["y"]}" x2="{c["fine_x"]}" y2="{c["fine_y"]}" stroke="{color}" stroke-width="{w}" '
-                   f'stroke-opacity="{0.35 + 0.6 * k:.2f}" stroke-dasharray="1.2 0.6"/>'
-                   f'<circle cx="{c["fine_x"]}" cy="{c["fine_y"]}" r="{0.7 if c["in_area"] == "1" else 0.5}" fill="{color}"/></g>')
-    tot = defaultdict(lambda: [0, 0.0, 0.0, ""])
+    for c in sorted(cs, key=lambda c: (carry_class(c), num(c["xt"]))):
+        k = carry_class(c)
+        name, col, w = CARRY_CLS[k]
+        who = short(info[c["player_id"]]) if c["player_id"] in info else c["giocatore"]
+        extra = " · entra in area" if c["in_area"] == "1" else ""
+        out.append(f'<g data-pid="{c["player_id"]}"><title>{c["minuto"]}\' {e(who)} – {c["metri"]} m, xT +{f(c["xt"], 3)} '
+                   f'(pericolosità {name}){extra}</title>'
+                   f'<line x1="{c["x"]}" y1="{c["y"]}" x2="{c["fine_x"]}" y2="{c["fine_y"]}" stroke="{col}" stroke-width="{w}" stroke-linecap="round"/>'
+                   f'<circle cx="{c["x"]}" cy="{c["y"]}" r="0.45" fill="{col}"/>'
+                   f'<circle cx="{c["fine_x"]}" cy="{c["fine_y"]}" r="1.75" fill="{col}" stroke="{color}" stroke-width="0.35"/>'
+                   f'<text x="{c["fine_x"]}" y="{num(c["fine_y"]) + 0.65:.2f}" font-size="1.8" font-weight="700" text-anchor="middle" '
+                   f'fill="#fff">{e(lab(c["player_id"]))}</text></g>')
+    tot = defaultdict(lambda: [0, 0.0, 0.0, 0])
     for c in cs:
         t = tot[c["player_id"]]
-        t[0] += 1; t[1] += num(c["metri"]); t[2] += num(c["xt"]); t[3] = (names or {}).get(c["player_id"], c["giocatore"])
-    best = sorted(tot.values(), key=lambda t: -t[1])[:5]
-    lst = "".join(f"<li>{e(t[3])}: <b>{t[0]}</b> conduzioni, {t[1]:.0f} m, xT {t[2]:.2f}</li>" for t in best)
-    return pitch("".join(out)) + f'<ul class="sub" style="margin-top:6px">{lst}</ul>'
+        t[0] += 1; t[1] += num(c["metri"]); t[2] += num(c["xt"]); t[3] += carry_class(c) == 2
+    rows = "".join(
+        f'<li data-pid="{pid}" style="cursor:pointer"><b style="display:inline-block;min-width:22px;color:{color}">{e(lab(pid))}</b>'
+        f'{e(short(info[pid]) if pid in info else pid)} <span class="sub">· {t[0]} cond. · {t[1]:.0f} m · xT {t[2]:.2f}'
+        f'{f" · <b style=color:#d6336c>{t[3]} pericolose</b>" if t[3] else ""}</span></li>'
+        for pid, t in sorted(tot.items(), key=lambda kv: -kv[1][2]))
+    return (f'<div class="cm" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start"><div style="flex:3 1 420px">{pitch("".join(out))}</div>'
+            f'<div style="flex:1 1 220px"><p class="sub" style="margin:0 0 4px">Ordinati per xT · clicca un giocatore per isolarlo</p>'
+            f'<ul style="list-style:none;padding:0;margin:0;font-size:13px;line-height:1.75">{rows}</ul></div></div>')
+
+
+CARRY_JS = """<script>document.querySelectorAll('.cm').forEach(function(m){var on=null;
+m.querySelectorAll('li[data-pid]').forEach(function(li){li.onclick=function(){on=on===li.dataset.pid?null:li.dataset.pid;
+m.querySelectorAll('g[data-pid]').forEach(function(g){g.style.opacity=!on||g.dataset.pid===on?1:0.07});
+m.querySelectorAll('li[data-pid]').forEach(function(x){x.style.fontWeight=x.dataset.pid===on?'700':'';x.style.opacity=!on||x.dataset.pid===on?1:0.5})}})})</script>"""
 
 
 INDIV_JS = """<script>(function(){var D=JSON.parse(document.getElementById('indiv-data').textContent);
@@ -861,9 +888,11 @@ def report(T, P, S, E, K, teams, R=(), C=(), PS=None):
 <div class="card"><h2>Combinazioni più frequenti</h2><div class="grid2">{combo}</div></div></div></div>
 <div class="card"><h2>Tiri per tipo</h2>{shot_breakdown(S, teams)}</div>
 <div class="card"><h2>Tutti i tiri</h2>{shot_table(S, teams)}</div>
-<div class="card"><h2>Carry map – conduzioni palla</h2><div class="grid2">{"".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{carry_map(C, t, COL[i], {p["player_id"]: short(p) for p in P})}</div>' for i, t in enumerate(teams))}</div>
-{leg((sw_line("var(--mute)", 1.5, "3 2", 0.4, True), "conduzione, poco xT"), (sw_line("var(--mute)", 1.5, "3 2", 1, True), "conduzione, molto xT"), (sw_line("var(--mute)", 2.6, "3 2", 1, True), "entra in area"))}
-<div class="legend">Conduzioni progressive, nel terzo finale o in area; il pallino è il punto di arrivo. Entrambe attaccano a destra.</div></div>
+<div class="card"><h2>Carry map – conduzioni palla</h2><div style="display:grid;gap:18px">{"".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{carry_map(C, t, COL[i], P)}</div>' for i, t in enumerate(teams))}</div>
+{leg(*[(sw_line(col, 2.2, "", 1, True), f"pericolosità {name}") for name, col, _ in CARRY_CLS])}
+<div class="legend">Ogni linea è una conduzione palla al piede (progressiva, nel terzo finale o in area): parte dal puntino piccolo e finisce nel
+cerchio con il numero di maglia di chi l'ha fatta. Pericolosità = xT guadagnato: bassa sotto 0,01, media 0,01–0,03, alta oltre 0,03 o se entra in area.
+Entrambe le squadre attaccano verso destra · passa il mouse su una conduzione per minuto, metri e xT.</div></div>{CARRY_JS}
 {f'<div class="card"><h2>Mappe individuali</h2>{individual_maps(P, PS, C, teams)}</div>' if PS is not None else ""}
 <div class="card"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div>{leg((sw_dot("var(--mute)", True, 2.5), "poco coinvolto"), (sw_dot("var(--mute)", True, 5), "molto coinvolto"), (sw_line("var(--mute)", 0.8, "", 0.4), "pochi passaggi"), (sw_line("var(--mute)", 3), "molti passaggi"))}<div class="legend">Posizione media dei giocatori,
 linee = almeno 3 passaggi riusciti (più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.
