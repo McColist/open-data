@@ -12,6 +12,7 @@ python delta_scout/xt.py                         # stima la griglia xT (xt_grigl
 python delta_scout/elo.py                        # rating Elo delle squadre -> output/elo.csv
 python delta_scout/anagrafica.py                 # età, altezza, link Transfermarkt/FBref da Reep -> output/anagrafica_giocatori.csv
 python delta_scout/rose.py                       # rose complete (titolari, subentrati, riserve) -> output/rose.csv
+python delta_scout/classifiche.py                # classifiche di tutti i tempi -> classifiche.html + output/carriere_giocatori.csv
 python delta_scout/report.py                     # report HTML di ogni partita in delta_scout/report/
 python delta_scout/report.py --n 778 --out C:\DeltaScout\report
 ```
@@ -107,6 +108,13 @@ Tutti i convocati di ogni partita: `stato` (titolare / subentrato / non entrato)
 `ruoli` (sequenza dei ruoli occupati), `cartellini`, `maglia_stimata` (1 = numero mancante nella fonte, recuperato dalle altre partite del giocatore; se non recuperabile, nella grafica compaiono le iniziali). Nel report alimenta la grafica **Formazioni**: titolari a specchio
 nella posizione media reale (stile Sofascore), con gol, assist, cartellini e minuto di uscita, e sotto allenatore,
 modulo e cambi di modulo, titolari con ruoli, sostituzioni (minuto, motivo) e riserve non utilizzate.
+
+## Classifiche di tutti i tempi
+
+`classifiche.html` (apri direttamente nel browser): classifiche per ruolo su tutte le partite, filtri per sesso, minuti minimi,
+metrica (36 metriche: per 90', percentuali con minimo di tentativi, Gol − xG in carriera) e ricerca; sotto, i podi per ruolo.
+Il ruolo di un giocatore è quello in cui ha giocato più minuti. `output/carriere_giocatori.csv` contiene totali e valori per 90'
+di tutti i 9.884 giocatori.
 
 ## output/tiri.csv – un tiro per riga
 
