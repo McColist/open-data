@@ -761,7 +761,7 @@ main{max-width:1000px;margin:0 auto;padding:16px}a{color:var(--s1)}
 .kicker{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 h1{font-size:26px;margin:4px 0 8px;color:var(--ink)}h2{font-size:21px;margin:4px 0 10px;line-height:1.25}.head{font-size:16.5px;font-weight:500;margin:0 0 14px}
 p{margin:0 0 10px;color:var(--ink2)}svg{display:block;width:100%;height:auto;overflow:visible}
-.sm{display:grid;grid-template-columns:repeat(3,1fr);gap:18px 22px}@media (max-width:760px){.sm{grid-template-columns:1fr 1fr}}
+.sm.sm2{grid-template-columns:1fr 1fr}@media (max-width:480px){.sm.sm2{grid-template-columns:1fr}}.sm{display:grid;grid-template-columns:repeat(3,1fr);gap:18px 22px}@media (max-width:760px){.sm{grid-template-columns:1fr 1fr}}
 @media (max-width:480px){.sm{grid-template-columns:1fr}}
 .lg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--ink2);margin:10px 0 4px}.lg span{display:inline-flex;align-items:center;gap:6px}
 .lg svg{display:inline-block;width:14px;height:14px}
@@ -773,17 +773,25 @@ details.tview{margin-top:10px;font-size:13px}details.tview summary{cursor:pointe
 th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:600}
 .toc{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px}.toc a{text-decoration:none}
 .exp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;font-size:12.5px;color:var(--muted)}
-.exp button{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.wk{color:var(--s1)}details.txt pre{white-space:pre-wrap;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);
+border:1px solid var(--line);border-radius:8px;padding:10px;max-height:340px;overflow:auto;color:var(--ink2)}
+details.txt .copy,.exp button{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
 """
 
 
 def card(i, st):
     body = "".join(f"<p>{e(p)}</p>" for p in st["body"])
-    btn = "".join(f'<button data-f="{k}">{v}</button>' for k, v in (("4:5", "4:5"), ("1:1", "1:1"), ("9:16", "9:16"), ("16:9", "16:9")))
-    return (f'<section class="card study" id="{st["id"]}"><div class="kicker">{i}. {e(st["kicker"])}</div><h2>{e(st["title"])}</h2>'
+    fm = ("4:5", "1:1", "9:16", "16:9")
+    btn = "".join(f'<button data-f="{k}">{k}</button>' for k in fm)
+    pk = "".join(f'<button data-f="{k}">{k}</button>' for k in fm)
+    return (f'<section class="card study" id="{st["id"]}"><div class="kicker">{i}. {e(st["kicker"])} · <span class="wk">Settimana {st["week"]}</span></div>'
+            f'<h2>{e(st["title"])}</h2>'
             f'<p class="head">{e(st["headline"])}</p><div class="chart">{st["chart"]}</div>{st["legend"]}{body}'
             f'<div class="meta"><p><b>Come è calcolato.</b> {e(st["method"])}</p><p><b>Attenzione.</b> {e(st["caveat"])}</p></div>'
-            f'{st["table"]}<div class="exp"><span>📷 Esporta per i social:</span>{btn}</div></section>')
+            f'{st["table"]}<details class="tview txt"><summary>Testi per i social (LinkedIn, Instagram, X, TikTok, alt text)</summary>'
+            f'<button class="copy">Copia i testi</button><pre>{e(st["texts"])}</pre></details>'
+            f'<div class="exp pack"><span>📦 Pack completo (5 slide PNG + PDF + testi):</span>{pk}<span class="pst"></span></div>'
+            f'<div class="exp one"><span>📷 Solo il grafico:</span>{btn}</div></section>')
 
 
 def main():
@@ -798,15 +806,34 @@ def main():
     studies = [eras_study(Tv, SH), worldcup_study(Tv), gender_style_study(Tv), gender_skill_study(SH), olympic_study(SH, Tv),
                home_study(T), timing_study(K), possession_study(Tv), luck_study(tabs), leicester_study(tabs, T), legends_study(Tv),
                fin, upsets_study(T, K, SH)]
+    import studi2 as s2
+    G = load("giocatori.csv")
+    WC = [r for r in Tv if r["competizione"] == "FIFA World Cup" and r["stagione"] in ("2018", "2022")]
+    studies += [s2.barca_study(Tv), s2.messi_study(Tv, G), s2.wc_finals_study(T), s2.ucl_finals_study(T), s2.pele_study(G, T),
+                s2.brazil70_study(Tv, G, WC), s2.holland74_study(Tv, G, WC), s2.maradona_study(T, G), s2.legends_share_study(G)]
     for st in studies:
-        if st["id"] in ("epoche", "mondiali", "stile", "olimpici", "possesso", "leggende"):
+        if st["id"] in ("epoche", "mondiali", "stile", "olimpici", "possesso", "leggende", "barcellona", "messi"):
             st["method"] += f" Escluse {len(bad)} partite in cui la fonte non contiene gli eventi di una delle due squadre."
+        st.setdefault("hook", s2.HOOKS.get(st["id"], st["title"]))
+    week = {sid: i for i, sid in enumerate(s2.CALENDAR, 1)}
+    assert sorted(week) == sorted(s["id"] for s in studies), "calendario e studi non coincidono"
+    by_week = {week[s["id"]]: s for s in studies}
+    for st in studies:
+        st["week"] = week[st["id"]]
+        nxt = by_week.get(st["week"] + 1)
+        st["next"] = nxt["title"] if nxt else ""
+        st["texts"] = s2.pack_texts(st, st["week"], st["next"] or "a presto")
     import report  # logo, copyright, esportazione condivisi con i report
     toc = "".join(f'<a href="#{s["id"]}">{i}. {e(s["title"])}</a>' for i, s in enumerate(studies, 1))
+    cal = table(["Settimana", "Studio", "Tema"], [[f"Settimana {w}", f"{studies.index(st) + 1}. {st['title']}", st["kicker"]]
+                                                for w, st in sorted(by_week.items())]).replace("Tabella dei dati", "Piano editoriale: uno studio a settimana", 1)
     cards = "".join(card(i, s) for i, s in enumerate(studies, 1))
     data = {"logo": report.FAVICON, "sb": report.SB_B64,
-            "studies": [{"id": s["id"], "kicker": s["kicker"], "title": s["title"], "headline": s["headline"],
-                         "foot": "Campione e metodo: " + s["method"][:220] + ("…" if len(s["method"]) > 220 else "")} for s in studies]}
+            "studies": [{"id": s["id"], "num": i, "kicker": s["kicker"], "title": s["title"], "headline": s["headline"], "hook": s["hook"],
+                         "body": s["body"], "method": s["method"], "caveat": s["caveat"], "week": s["week"], "next": s["next"],
+                         "texts": s["texts"],
+                         "foot": "Campione e metodo: " + s["method"][:220] + ("…" if len(s["method"]) > 220 else "")}
+                        for i, s in enumerate(studies, 1)]}
     js = (HERE / "studi_export.js").read_text(encoding="utf-8")
     nav = '<a href="index.html">Report partite</a> <a href="classifiche.html">Classifiche di tutti i tempi</a>'
     data_js = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
@@ -814,10 +841,10 @@ def main():
     page = (f'<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>Delta Scout – Studi</title>{report.HEAD_EXTRA}<style>{report.CSS}{CSS}</style></head><body><main>'
             f'{report.brand_bar(nav)}'
-            f'<div class="card"><div class="kicker">Delta Scout · Studi</div><h1>Cosa dicono 3.961 partite</h1>'
+            f'<div class="card"><div class="kicker">Delta Scout · Studi</div><h1>Cosa dicono 3.961 partite: {len(studies)} studi</h1>'
             f'<p>Studi sul dataset StatsBomb Open Data: come è cambiato il calcio, le differenze tra maschile e femminile, squadre, fortuna, '
-            f'finalizzazione e partite anomale. Ogni studio riporta campione, metodo e limiti; i numeri sono ricalcolati dai dati a ogni '
-            f'esecuzione di <code>studi.py</code>.</p><div class="toc">{toc}</div>'
+            f'finalizzazione, partite anomale, finali e leggende prima dell’era dei dati. Ogni studio riporta campione, metodo e limiti; i numeri sono ricalcolati dai dati a ogni '
+            f'esecuzione di <code>studi.py</code>. Ogni studio ha il suo pack social: carosello di 5 slide (PNG e PDF) e testi pronti per LinkedIn, Instagram, X e TikTok.</p><div class="toc">{toc}</div>{cal}'
             f'<div class="exp" id="exp-all"><span>📷 Esporta tutti gli studi (zip + PDF):</span>{exp_btns}</div><p class="sub" id="exp-status"></p></div>{cards}{report.footer()}</main>'
             f'<script type="application/json" id="studi-data">{data_js}</script>'
             f'{report.PROTECT_JS}<script>{js}</script></body></html>')

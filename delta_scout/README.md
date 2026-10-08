@@ -131,11 +131,20 @@ di tutti i 9.884 giocatori.
 
 ## Studi
 
-`studi.html`: 13 studi ricalcolati dai dati (epoche, Mondiali, maschile/femminile, portieri, gol olimpici, fattore campo,
-minuti dei gol, possesso, punti attesi 2015/16, Leicester, squadre dominanti, finalizzatori, vittorie improbabili). Ogni studio
-ha grafico, campione, metodo, limiti, tabella dei dati ed esportazione per i social. Gli studi basati sugli eventi escludono
-le partite in cui la fonte non contiene gli eventi di una delle due squadre (100 partite: ISL 2021/22, WSL 2019–21,
-Ligue 1 2015/16, NWSL 2018), riconosciute da 0 passaggi o da gol degli eventi diversi dal risultato.
+`studi.html`: 22 studi ricalcolati dai dati. Studi 1–13 in `studi.py` (epoche, Mondiali, maschile/femminile, portieri,
+gol olimpici, fattore campo, minuti dei gol, possesso, punti attesi 2015/16, Leicester, squadre dominanti, finalizzatori,
+vittorie improbabili); studi 14–22 in `studi2.py` (Barcellona stagione per stagione con gli allenatori, Messi-dipendenza,
+tutte le finali dei Mondiali e di Champions nel dataset, Pelé, Brasile 1970, Olanda 1974 di Cruyff e Neeskens,
+Maradona 1986, quota sulla squadra di Pelé, Cruyff, Maradona e Messi). Ogni studio ha grafico, campione, metodo, limiti,
+tabella dei dati. Gli studi basati sugli eventi escludono le partite in cui la fonte non contiene gli eventi di una delle
+due squadre (100 partite: ISL 2021/22, WSL 2019–21, Ligue 1 2015/16, NWSL 2018), riconosciute da 0 passaggi o da gol
+degli eventi diversi dal risultato.
+
+**Uno studio a settimana.** La pagina contiene il piano editoriale (`CALENDAR` in `studi2.py`, settimane 1–22) e per ogni
+studio un **pack** scaricabile in 4:5, 1:1, 9:16 o 16:9: zip con 5 slide PNG (copertina, grafico, 3 cose da sapere, metodo
+e limiti, chiusura con lo studio della settimana dopo), il carosello in PDF per LinkedIn e `testi.txt` con i testi pronti
+per LinkedIn, Instagram, thread di X (tweet sotto i 280 caratteri), copione TikTok/Reels di 30 secondi, testo alternativo
+e hashtag. Gli stessi testi sono nella pagina, sotto ogni studio, con il pulsante «Copia i testi».
 
 ## Pubblicare sui social
 
