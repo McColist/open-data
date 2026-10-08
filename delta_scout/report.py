@@ -68,6 +68,8 @@ border:1px solid var(--line);background:transparent;color:var(--ink);cursor:poin
 .tl td{padding:3px 6px;border-bottom:1px solid var(--line);vertical-align:top}.tl td.m{width:44px;text-align:right;color:var(--mute)}
 .st td,.st th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right}.st th{color:var(--mute);font-weight:600}.st td:first-child,.st th:first-child{text-align:left}
 .kv{display:flex;flex-wrap:wrap;gap:4px 18px;justify-content:center;margin-top:8px}.legend{font-size:12px;color:var(--mute);margin-top:6px}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--mute);margin-top:10px;align-items:center}
+.lg span{display:inline-flex;align-items:center;gap:6px}.lg svg{display:inline-block;width:auto;height:12px}
 """
 
 
@@ -250,7 +252,7 @@ t='<b>'+rs.length+'</b> palloni ricevuti su passaggio · <b>'+f3+'</b> nel terzo
 else{var cs=D.carries.filter(function(c){return c[0]===id}),m=0,x=0;
 cs.forEach(function(c){m+=c[5];x+=c[6];g+=L(c[1],c[2],c[3],c[4],col,c[7]?0.8:0.5,0.85,'1.2 0.6')+C(c[3],c[4],c[7]?0.8:0.55,col)});
 t='<b>'+cs.length+'</b> conduzioni significative (progressive, nel terzo finale o in area) · <b>'+Math.round(m)+'</b> m · xT <b>'+x.toFixed(2)+'</b>'}
-box.querySelector('.ind').innerHTML=g;info.innerHTML=t}
+box.querySelector('.ind').innerHTML=g;info.innerHTML=t;document.getElementById('indiv-leg').innerHTML=D.legs[view].split('@C').join(col)}
 draw()})()</script>"""
 
 
@@ -258,7 +260,11 @@ def individual_maps(P, PS, C, teams):
     players = [p for p in sorted(P, key=lambda p: (teams.index(p["squadra"]) if p["squadra"] in teams else 2,
                                                        p["titolare"] != "1", -num(p["minuti"])))]
     idx = {t: i for i, t in enumerate(teams)}
-    data = {"col": list(COL),
+    legs = {"p": leg((sw_line("@C", 2, "", 1, True), "passaggio riuscito"), (sw_line("#9aa3ad", 1.5, "2 1.5", 0.8, True), "sbagliato"),
+                     (sw_line("#f2a900", 2.5, "", 1, True), "passaggio chiave / assist")),
+            "r": leg((sw_dot("@C"), "punto di ricezione"), (sw_line("@C", 1, "", 0.3), "da dove arrivava il passaggio")),
+            "c": leg((sw_line("@C", 1.5, "3 2", 1, True), "conduzione"), (sw_line("@C", 2.6, "3 2", 1, True), "entra in area"))}
+    data = {"col": list(COL), "legs": legs,
             "players": [[int(p["player_id"]), short(p), p["squadra"], idx.get(p["squadra"], 0)] for p in players],
             "passes": PS,
             "carries": [[int(c["player_id"]), num(c["x"]), num(c["y"]), num(c["fine_x"]), num(c["fine_y"]), num(c["metri"]),
@@ -269,7 +275,7 @@ def individual_maps(P, PS, C, teams):
     svg = pitch('<g class="ind"></g>')
     return (f'<div class="f" style="margin-bottom:10px"><label class="sub">Giocatore <select id="indiv-p" style="font:inherit;padding:4px 8px;'
             f'border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)"></select></label></div>{tabs}'
-            f'<div id="indiv-map">{svg}</div><p class="sub" id="indiv-info" style="margin-top:6px"></p>'
+            f'<div id="indiv-map">{svg}</div><div id="indiv-leg"></div><p class="sub" id="indiv-info" style="margin-top:6px"></p>'
             f'<div class="legend">Il giocatore attacca sempre verso destra. Passa da un giocatore all\'altro con il menu.</div>'
             f'<script type="application/json" id="indiv-data">{js}</script>{INDIV_JS}')
 
@@ -283,6 +289,33 @@ def mini_heat(spec, color):
                     for i, v in enumerate(vals))
     return (f'<svg viewBox="0 0 48 32" width="48" height="32" style="display:inline-block;vertical-align:middle">'
             f'<rect width="48" height="32" fill="var(--pitch)"/>{cells}</svg>')
+
+
+def sw(inner, w=22):
+    return f'<svg viewBox="0 0 {w} 12" width="{w}" height="12">{inner}</svg>'
+
+
+def sw_dot(c, filled=True, r=4.5):
+    return sw(f'<circle cx="11" cy="6" r="{r}" fill="{c if filled else "none"}" stroke="{c}" stroke-width="1.3"/>')
+
+
+def sw_line(c, w=2, dash="", op=1, end=False):
+    d = f' stroke-dasharray="{dash}"' if dash else ""
+    return sw(f'<line x1="1" y1="6" x2="{17 if end else 21}" y2="6" stroke="{c}" stroke-width="{w}" stroke-opacity="{op}"{d}/>'
+              + (f'<circle cx="18.5" cy="6" r="2.4" fill="{c}"/>' if end else ""))
+
+
+def sw_rect(c, op=1):
+    return sw(f'<rect x="5" y="1" width="12" height="10" rx="1.5" fill="{c}" fill-opacity="{op}"/>')
+
+
+def sw_grad(c):
+    return sw("".join(f'<rect x="{i * 10}" y="1" width="10" height="10" fill="{c}" fill-opacity="{0.08 + 0.2 * i:.2f}"/>'
+                      for i in range(5)), 50)
+
+
+def leg(*items):
+    return '<div class="lg">' + "".join(f"<span>{a}{b}</span>" for a, b in items) + "</div>"
 
 
 def heat_pitch(spec, color):
@@ -622,14 +655,14 @@ def goal_minutes(K, team):
 
 
 def spread(pts):
-    """Porta le posizioni medie nella propria metà (5-49 x 7-73), mantenendo l'ordine, e separa i giocatori sovrapposti."""
+    """Porta le posizioni medie nella propria metà (5-49 x 7-69), mantenendo l'ordine, e separa i giocatori sovrapposti."""
     if not pts:
         return
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
     for p in pts:
         p[0] = 5 + 44 * (p[0] - x0) / (x1 - x0 or 1)
-        p[1] = 7 + 66 * (p[1] - y0) / (y1 - y0 or 1)
+        p[1] = 7 + 62 * (p[1] - y0) / (y1 - y0 or 1)
     for _ in range(60):
         moved = False
         for a in range(len(pts)):
@@ -645,7 +678,7 @@ def spread(pts):
                     moved = True
         for p in pts:
             p[0] = min(max(p[0], 4), 51)
-            p[1] = min(max(p[1], 6), 74)
+            p[1] = min(max(p[1], 6), 69)  # spazio sotto per nome e minuto di uscita
         if not moved:
             break
 
@@ -696,8 +729,11 @@ def lineups(T, P, R, K, teams):
                    f'<b>{e(t)}</b> <span class="sub">{e(T[t].get("modulo") or "")}</span></div>' for i, t in enumerate(teams))
     lists = "".join(f"<div>{bench(T[t], R, K, t, COL[i])}</div>" for i, t in enumerate(teams))
     return (f'<div class="grid2" style="margin-bottom:8px">{head}</div>{pitch("".join(marks))}'
-            f'<div class="legend">Posizione media reale dei titolari (tutte le azioni con palla), ogni squadra nella propria metà · '
-            f'⚽ gol · A assist · cartellino · ▼ minuto di uscita · passa il mouse per ruolo, xT e xG</div>'
+            + leg((sw_dot(COL[0]), e(teams[0])), (sw_dot(COL[1]), e(teams[1])), ("⚽", "gol"),
+                  (sw(f'<circle cx="11" cy="6" r="4.5" fill="none" stroke="var(--mute)" stroke-width="1"/><text x="11" y="8.6" font-size="7" text-anchor="middle" fill="var(--mute)" font-weight="700">A</text>'), "assist"),
+                  (sw_rect("#f2c200"), "giallo"), (sw_rect("#d33"), "rosso"), ('<span style="color:#d33">▼ 63\'</span>', "minuto di uscita"))
+            + f'<div class="legend">Posizione media reale dei titolari (tutte le azioni con palla), ogni squadra nella propria metà · '
+            f'passa il mouse per ruolo, xT e xG</div>'
             f'<div class="grid2" style="margin-top:12px">{lists}</div>')
 
 
@@ -768,11 +804,12 @@ def report(T, P, S, E, K, teams, R=(), C=(), PS=None):
     nets = "".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>'
                    f'{pass_network(by_team[t], [x for x in E if x["squadra"] == t], COL[i])}</div>' for i, t in enumerate(teams))
     tables = "".join(f'<div class="card"><h2><span class="dot" style="background:{COL[i]}"></span>Giocatori – {e(t)}</h2>'
-                     f'{player_tabs(by_team[t], COL[i])}</div>' for i, t in enumerate(teams))
+                     f'{player_tabs(by_team[t], COL[i])}{leg((sw_grad(COL[i]), "heatmap: da poche a molte azioni (attacca a destra)"), ("🟨🟥", "cartellini"), ("(25)", "età"))}'
+                     f'<div class="legend">Righe in grigio = subentrati. Contrasti, dribbling, aerei e passaggi: riusciti/tentati.</div></div>' for i, t in enumerate(teams))
     heat = "".join(f'<div class="card"><h2><span class="dot" style="background:{COL[i]}"></span>Mappe di calore – {e(t)}</h2><div class="grid3">'
                    + "".join(f'<div><h3>{lab}</h3>{heat_pitch(T[t].get(f"heatmap_{k}_6x4"), COL[i])}</div>'
                              for k, lab in (("tocchi", "Azioni con palla"), ("pressioni", "Pressioni"), ("difesa", "Azioni difensive")))
-                   + '</div><div class="legend">La squadra attacca verso destra. Più scuro = più azioni.</div></div>'
+                   + f'</div>{leg((sw_grad(COL[i]), "da poche a molte azioni"))}<div class="legend">La squadra attacca verso destra.</div></div>'
                    for i, t in enumerate(teams) if T[t].get("heatmap_tocchi_6x4"))
     combo = "".join(f"<div>{combos(E, by_team[t], t, COL[i])}</div>" for i, t in enumerate(teams))
     return f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -785,19 +822,23 @@ def report(T, P, S, E, K, teams, R=(), C=(), PS=None):
 <div class="kv sub">{info_line(h)}</div></div>
 <div class="card"><h2>Analisi</h2><p>{" ".join(text)}</p><h3>Giocatori chiave</h3><ul>{"".join(f"<li>{k}</li>" for k in keys)}</ul></div>
 {f'<div class="card"><h2>Formazioni</h2>{lineups(T, P, R, K, teams)}</div>' if R else ""}
-<div class="grid2"><div class="card"><h2>Statistiche di squadra</h2><table class="cmp">{"".join(rows)}</table></div>
-<div><div class="card"><h2>Andamento xG</h2>{xg_timeline(S, teams)}<div class="legend">{legend} · pallini = gol</div></div>
-<div class="card"><h2>Mappa dei tiri</h2>{shot_map(S, teams)}<div class="legend">{e(teams[0])} attacca a destra, {e(teams[1])} a sinistra ·
-dimensione = xG · pieno = gol · passa il mouse per i dettagli</div></div></div></div>
+<div class="grid2"><div class="card"><h2>Statistiche di squadra</h2>{leg((sw_rect(COL[0]), e(teams[0])), (sw_rect(COL[1]), e(teams[1])))}
+<table class="cmp" style="margin-top:8px">{"".join(rows)}</table><div class="legend">La barra mostra la quota di ogni squadra sul totale.</div></div>
+<div><div class="card"><h2>Andamento xG</h2>{xg_timeline(S, teams)}{leg((sw_line(COL[0], 2.5), e(teams[0])), (sw_line(COL[1], 2.5), e(teams[1])), (sw_dot("var(--mute)"), "gol"))}
+<div class="legend">xG cumulati minuto per minuto: ogni gradino è un tiro.</div></div>
+<div class="card"><h2>Mappa dei tiri</h2>{shot_map(S, teams)}{leg((sw_dot(COL[0]), f"gol {e(teams[0])}"), (sw_dot(COL[0], False), "tiro"), (sw_dot(COL[1]), f"gol {e(teams[1])}"), (sw_dot(COL[1], False), "tiro"), (sw_dot("var(--mute)", False, 1.8), "xG basso"), (sw_dot("var(--mute)", False, 5), "xG alto"))}
+<div class="legend">{e(teams[0])} attacca a destra, {e(teams[1])} a sinistra · passa il mouse per i dettagli</div></div></div></div>
 <div class="grid2"><div class="card"><h2>Cronaca</h2>{timeline(K, teams)}</div>
-<div><div class="card"><h2>Momentum</h2>{momentum_chart(T, teams)}<div class="legend">{legend} · azioni nel terzo offensivo ogni 5 minuti</div></div>
+<div><div class="card"><h2>Momentum</h2>{momentum_chart(T, teams)}{leg((sw_rect(COL[0]), f"{e(teams[0])} (sopra)"), (sw_rect(COL[1]), f"{e(teams[1])} (sotto)"))}
+<div class="legend">Azioni nel terzo offensivo ogni 5 minuti: barra più alta = più pressione offensiva.</div></div>
 <div class="card"><h2>Combinazioni più frequenti</h2><div class="grid2">{combo}</div></div></div></div>
 <div class="card"><h2>Tiri per tipo</h2>{shot_breakdown(S, teams)}</div>
 <div class="card"><h2>Tutti i tiri</h2>{shot_table(S, teams)}</div>
 <div class="card"><h2>Carry map – conduzioni palla</h2><div class="grid2">{"".join(f'<div><h3><span class="dot" style="background:{COL[i]}"></span>{e(t)}</h3>{carry_map(C, t, COL[i], {p["player_id"]: short(p) for p in P})}</div>' for i, t in enumerate(teams))}</div>
-<div class="legend">Conduzioni progressive, nel terzo finale o in area. Linea più intensa = più xT guadagnato; più spessa = entra in area. Entrambe attaccano a destra.</div></div>
+{leg((sw_line("var(--mute)", 1.5, "3 2", 0.4, True), "conduzione, poco xT"), (sw_line("var(--mute)", 1.5, "3 2", 1, True), "conduzione, molto xT"), (sw_line("var(--mute)", 2.6, "3 2", 1, True), "entra in area"))}
+<div class="legend">Conduzioni progressive, nel terzo finale o in area; il pallino è il punto di arrivo. Entrambe attaccano a destra.</div></div>
 {f'<div class="card"><h2>Mappe individuali</h2>{individual_maps(P, PS, C, teams)}</div>' if PS is not None else ""}
-<div class="card"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div><div class="legend">Posizione media dei giocatori,
+<div class="card"><h2>Rete di passaggi</h2><div style="display:grid;gap:18px">{nets}</div>{leg((sw_dot("var(--mute)", True, 2.5), "poco coinvolto"), (sw_dot("var(--mute)", True, 5), "molto coinvolto"), (sw_line("var(--mute)", 0.8, "", 0.4), "pochi passaggi"), (sw_line("var(--mute)", 3), "molti passaggi"))}<div class="legend">Posizione media dei giocatori,
 linee = almeno 3 passaggi riusciti (più spesse = più passaggi), cerchi più grandi = più coinvolti. Entrambe attaccano a destra.
 Accanto: numero di maglia → giocatore, con i passaggi scambiati nella rete.</div></div>
 {heat}
