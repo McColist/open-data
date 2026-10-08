@@ -617,6 +617,19 @@ ROLE_XY = {
 }
 
 
+REPARTI = {"Portiere": "#c99a06", "Difensore": "#2f8f5b", "Centrocampista": "#7b5cd6", "Attaccante": "#e8590c"}
+
+
+def reparto(role):
+    if role == "Goalkeeper":
+        return "Portiere"
+    if "Back" in role:
+        return "Difensore"
+    if "Midfield" in role:
+        return "Centrocampista"
+    return "Attaccante" if role else "Centrocampista"
+
+
 def pitch_name(r):
     nick = r.get("soprannome")
     toks = (nick or r["giocatore"]).split()
@@ -655,30 +668,30 @@ def goal_minutes(K, team):
 
 
 def spread(pts):
-    """Porta le posizioni medie nella propria metà (5-49 x 7-69), mantenendo l'ordine, e separa i giocatori sovrapposti."""
+    """Porta le posizioni medie nella propria metà (5-49 x 11-69), mantenendo l'ordine, e separa i giocatori sovrapposti."""
     if not pts:
         return
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
     for p in pts:
         p[0] = 5 + 44 * (p[0] - x0) / (x1 - x0 or 1)
-        p[1] = 7 + 62 * (p[1] - y0) / (y1 - y0 or 1)
+        p[1] = 11 + 58 * (p[1] - y0) / (y1 - y0 or 1)
     for _ in range(60):
         moved = False
         for a in range(len(pts)):
             for b in range(a + 1, len(pts)):
                 dx, dy = pts[b][0] - pts[a][0], pts[b][1] - pts[a][1]
                 d = math.hypot(dx / 1.5, dy)
-                if d < 9:
+                if d < 10:
                     if d == 0:
                         dx, dy, d = 0.0, 1.0, 1.0
-                    k = (9 - d) / 2 / d
+                    k = (10 - d) / 2 / d
                     pts[a][0] -= dx * k * 0.7; pts[a][1] -= dy * k
                     pts[b][0] += dx * k * 0.7; pts[b][1] += dy * k
                     moved = True
         for p in pts:
             p[0] = min(max(p[0], 4), 51)
-            p[1] = min(max(p[1], 6), 69)  # spazio sotto per nome e minuto di uscita
+            p[1] = min(max(p[1], 11), 69)  # simmetrico (la trasferta è ruotata) e con spazio sotto per nome e uscita
         if not moved:
             break
 
@@ -720,7 +733,7 @@ def lineups(T, P, R, K, teams):
                        f'stroke="var(--pitch)" stroke-width="0.5" paint-order="stroke">▼ {sub[0]}\'</text>') if sub else ""
             tip = f'{r["giocatore"]} – {r["ruolo_iniziale"]}' + (f' – xT {f(p.get("xt"))}, xG {f(p.get("xg"))}' if p else "")
             marks.append(
-                f'<g><title>{e(tip)}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{c}" stroke="var(--card)" stroke-width="0.5"/>'
+                f'<g><title>{e(tip)}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="3.1" fill="{REPARTI[reparto(r["ruolo_iniziale"])]}" stroke="{c}" stroke-width="0.9"/>'
                 f'<text x="{x:.1f}" y="{y + 1.1:.1f}" font-size="{2.9 if r["maglia"] else 2.2}" fill="#fff" text-anchor="middle" '
                 f'font-weight="700">{e(r["maglia"] or initials(pitch_name(r)))}</text>'
                 f'<text x="{x:.1f}" y="{y + 5.6:.1f}" font-size="2.3" fill="var(--ink)" text-anchor="middle" '
@@ -729,7 +742,8 @@ def lineups(T, P, R, K, teams):
                    f'<b>{e(t)}</b> <span class="sub">{e(T[t].get("modulo") or "")}</span></div>' for i, t in enumerate(teams))
     lists = "".join(f"<div>{bench(T[t], R, K, t, COL[i])}</div>" for i, t in enumerate(teams))
     return (f'<div class="grid2" style="margin-bottom:8px">{head}</div>{pitch("".join(marks))}'
-            + leg((sw_dot(COL[0]), e(teams[0])), (sw_dot(COL[1]), e(teams[1])), ("⚽", "gol"),
+            + leg(*[(sw_dot(v), k) for k, v in REPARTI.items()])
+            + leg((sw_dot(COL[0], False), f"bordo {e(teams[0])}"), (sw_dot(COL[1], False), f"bordo {e(teams[1])}"), ("⚽", "gol"),
                   (sw(f'<circle cx="11" cy="6" r="4.5" fill="none" stroke="var(--mute)" stroke-width="1"/><text x="11" y="8.6" font-size="7" text-anchor="middle" fill="var(--mute)" font-weight="700">A</text>'), "assist"),
                   (sw_rect("#f2c200"), "giallo"), (sw_rect("#d33"), "rosso"), ('<span style="color:#d33">▼ 63\'</span>', "minuto di uscita"))
             + f'<div class="legend">Posizione media reale dei titolari (tutte le azioni con palla), ogni squadra nella propria metà · '
