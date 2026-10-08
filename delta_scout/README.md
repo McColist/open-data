@@ -128,6 +128,13 @@ di tutti i 9.884 giocatori.
 - Nel report: voto in formazione e tabelle, migliore in campo, scheda "Rispetto alla carriera" (valore per 90' / media in carriera),
   mappa del pressing, carry map con frecce, esito e filtri, reti di passaggi per tutta la partita e per ogni finestra tra i cambi, menu di navigazione.
 
+## Pubblicare sui social
+
+In ogni report, sotto l'intestazione, c'è **Pubblica sui social**: un clic crea il report come carosello (copertina, analisi,
+statistiche, pagelle, formazioni, xG, tiri, momentum, carry map, pressing, reti di passaggi) nel formato scelto
+(4:5 Instagram/LinkedIn, 1:1, 9:16 TikTok/Storie, 16:9 X) e scarica uno zip con le slide PNG e un PDF (per i post-documento
+di LinkedIn). Tutto avviene nel browser con le librerie in `vendor/` (JSZip e jsPDF, licenza MIT), anche offline.
+
 ## Logo, copyright e protezione
 
 Logo in `logo.svg` (ricostruzione vettoriale): in testa a ogni pagina, come favicon e in filigrana su ogni grafico ("© Delta Scout").

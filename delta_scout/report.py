@@ -157,6 +157,44 @@ def footer():
 
 
 CAREER, ROLE_AVG, VOTI = {}, {}, {}
+_js = HERE / "esporta_social.js"
+EXPORT_JS = _js.read_text(encoding="utf-8") if _js.exists() else ""
+_sb = HERE / "statsbomb_logo_small.png"
+SB_B64 = "data:image/png;base64," + __import__("base64").b64encode(_sb.read_bytes()).decode() if _sb.exists() else ""
+SOCIAL_STATS = [("Gol", "gol", 0), ("xG", "xg", 2), ("xT", "xt", 2), ("Tiri", "tiri", 0), ("Tiri in porta", "tiri_in_porta", 0),
+                ("Possesso %", "possesso_pct", 0), ("Field tilt %", "field_tilt_pct", 0), ("PPDA (basso = più pressing)", "ppda", 1),
+                ("Passaggi", "passaggi", 0), ("Precisione passaggi %", "precisione_passaggi_pct", 0),
+                ("Passaggi progressivi", "passaggi_progressivi", 0), ("Pressioni alte", "pressioni_alte", 0),
+                ("Recuperi alti", "recuperi_alti", 0), ("Contrasti vinti", "contrasti_vinti", 0)]
+
+
+def plain(h):
+    return html.unescape(__import__("re").sub(r"<[^>]+>", "", h)).strip()
+
+
+def social_box(T, P, teams, text, keys):
+    h, a = T[teams[0]], T[teams[1]]
+    rated = sorted([p for p in P if p.get("voto")], key=lambda p: -float(p["voto"]))
+    best = rated[0] if rated else None
+    info = " · ".join(x for x in (FASI.get(h.get("fase"), h.get("fase")), h["data"], h.get("stadio")) if x)
+    slug = __import__("re").sub(r"[^a-z0-9]+", "_", f'{h["n"]} {teams[0]} {teams[1]}'.lower()).strip("_")
+    ds = {"title": f'{teams[0]} {h["gol"]}–{a["gol"]} {teams[1]}', "sub": f'{h["competizione"]} {h["stagione"]}', "slug": slug,
+          "logo": FAVICON, "sb": SB_B64, "col": list(COL),
+          "cover": {"home": teams[0], "away": teams[1], "gh": h["gol"], "ga": a["gol"], "xgh": f(h["xg"]), "xga": f(a["xg"]),
+                    "comp": f'{h["competizione"]} {h["stagione"]}', "info": info,
+                    "best": [short(best), best["squadra"], f'{float(best["voto"]):.1f}'] if best else None},
+          "text": plain(" ".join(text)), "keys": [plain(k) for k in keys],
+          "stats": [[lab, f(h.get(k), d), f(a.get(k), d)] for lab, k, d in SOCIAL_STATS if h.get(k) not in (None, "")],
+          "top": [[short(p), p["squadra"], teams.index(p["squadra"]) if p["squadra"] in teams else 0, f'{float(p["voto"]):.1f}'] for p in rated[:14]]}
+    js = json.dumps(ds, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    btns = "".join(f'<button data-f="{k}">{v}</button>' for k, v in (("4:5", "Instagram / LinkedIn 4:5"), ("1:1", "Quadrato 1:1"),
+                                                                      ("9:16", "TikTok / Storie 9:16"), ("16:9", "X 16:9")))
+    return (f'<div class="card" id="social"><h2>Pubblica sui social</h2><p class="sub" style="margin:0 0 10px">Crea il report come carosello di '
+            f'slide (copertina, analisi, statistiche, pagelle, formazioni, tiri, conduzioni, pressing, reti di passaggi), con logo Delta Scout e '
+            f'attribuzione StatsBomb. Scarichi uno zip con le immagini PNG e un PDF: il PDF si carica su LinkedIn come documento, le immagini su '
+            f'Instagram, TikTok (modalità foto) e X (massimo 4 per post). Le immagini vengono create nel browser, non serve installare nulla.</p>'
+            f'<div class="flt" id="exp-box">{btns}</div><p class="sub" id="exp-status"></p>'
+            f'<script type="application/json" id="ds-export">{js}</script></div>')
 CTX = [("xg", "xG"), ("xa", "xA"), ("xt", "xT"), ("sca", "SCA"), ("passaggi_progressivi", "Pass. progr."),
        ("conduzioni_progressive", "Cond. progr."), ("dribbling_riusciti", "Dribbling"), ("azioni_difensive", "Az. difensive"),
        ("pressioni", "Pressioni")]
@@ -1193,6 +1231,7 @@ def report(T, P, S, E, K, teams, R=(), C=(), PS=None, RG=()):
 <div class="t" style="color:{COL[1]}">{e(teams[1])}</div></div>
 <div class="score sub"><div>xG {f(h["xg"])}{mod(h)}{coach(h)}</div><div></div><div>xG {f(a["xg"])}{mod(a)}{coach(a)}</div></div>
 <div class="kv sub">{info_line(h)}</div></div>
+{social_box(T, P, teams, text, keys) if EXPORT_JS else ""}
 <div class="card" id="analisi"><h2>Analisi</h2><p>{" ".join(text)}</p><h3>Giocatori chiave</h3><ul>{"".join(f"<li>{k}</li>" for k in keys)}</ul></div>
 {f'<div class="card" id="formazioni"><h2>Formazioni</h2>{lineups(T, P, R, K, teams)}</div>' if R else ""}
 <div class="grid2" id="statistiche"><div class="card"><h2>Statistiche di squadra</h2>{leg((sw_rect(COL[0]), e(teams[0])), (sw_rect(COL[1]), e(teams[1])))}
@@ -1228,7 +1267,7 @@ Accanto: numero di maglia → giocatore, con i passaggi scambiati nella rete.</d
 {heat}
 {tables}
 {footer()}
-</main>{TAB_JS}{NET_JS}{PROTECT_JS}</body></html>"""
+</main>{TAB_JS}{NET_JS}{PROTECT_JS}{EXPORT_JS}</body></html>"""
 
 
 def mod(t):
@@ -1295,6 +1334,9 @@ def main():
     logo_png = HERE / "statsbomb_logo.png"
     if logo_png.exists():
         (out / "statsbomb_logo.png").write_bytes(logo_png.read_bytes())
+    (out / "vendor").mkdir(exist_ok=True)
+    for v in (HERE / "vendor").glob("*"):
+        (out / "vendor" / v.name).write_bytes(v.read_bytes())
     if (HERE / "classifiche.html").exists():
         (out / "classifiche.html").write_bytes((HERE / "classifiche.html").read_bytes())
 
