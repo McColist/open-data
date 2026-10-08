@@ -104,7 +104,7 @@ i casi ambigui (omonimi) sono lasciati vuoti invece di rischiare un collegamento
 ## output/rose.csv
 
 Tutti i convocati di ogni partita: `stato` (titolare / subentrato / non entrato), `maglia`, `ruolo_iniziale`,
-`ruoli` (sequenza dei ruoli occupati), `cartellini`. Nel report alimenta la grafica **Formazioni**: titolari a specchio
+`ruoli` (sequenza dei ruoli occupati), `cartellini`, `maglia_stimata` (1 = numero mancante nella fonte, recuperato dalle altre partite del giocatore; se non recuperabile, nella grafica compaiono le iniziali). Nel report alimenta la grafica **Formazioni**: titolari a specchio
 nella posizione media reale (stile Sofascore), con gol, assist, cartellini e minuto di uscita, e sotto allenatore,
 modulo e cambi di modulo, titolari con ruoli, sostituzioni (minuto, motivo) e riserve non utilizzate.
 

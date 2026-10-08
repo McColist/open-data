@@ -6,6 +6,7 @@ Scrive delta_scout/output/rose.csv (usato da report.py per formazioni e panchine
 """
 import csv
 import json
+from collections import Counter, defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -37,12 +38,29 @@ def main():
                 rows.append({
                     "n": int(m["n"]), "match_id": mid, "squadra": t["team_name"], "player_id": p["player_id"],
                     "giocatore": p["player_name"], "soprannome": p.get("player_nickname") or "",
-                    "maglia": p.get("jersey_number"), "nazionalita": (p.get("country") or {}).get("name", ""),
+                    "maglia": p.get("jersey_number") or "", "nazionalita": (p.get("country") or {}).get("name", ""),
                     "stato": stato, "ruolo_iniziale": ruoli[0] if ruoli else "", "ruoli": " → ".join(ruoli),
                     "cartellini": ", ".join(CARDS.get(c["card_type"], c["card_type"])  # minuti: vedi eventi_chiave.csv
                                             for c in p.get("cards", []) if c.get("period", 1) <= 4)})
+    # alcune partite (es. Premier League 2003/04) hanno la maglia 0 nei dati sorgente:
+    # si usa il numero più frequente dello stesso giocatore nella stessa squadra e stagione, altrimenti in qualsiasi stagione
+    stagione = {m["n"]: m["stagione"] for m in index.values()}
+    by_season, by_team = defaultdict(Counter), defaultdict(Counter)
+    for r in rows:
+        if r["maglia"]:
+            by_season[(r["squadra"], r["player_id"], stagione[str(r["n"])])][r["maglia"]] += 1
+            by_team[(r["squadra"], r["player_id"])][r["maglia"]] += 1
+    fixed = 0
+    for r in rows:
+        r["maglia_stimata"] = 0
+        if not r["maglia"]:
+            c = by_season.get((r["squadra"], r["player_id"], stagione[str(r["n"])])) or by_team.get((r["squadra"], r["player_id"]))
+            r["maglia"] = c.most_common(1)[0][0] if c else ""
+            r["maglia_stimata"] = 1
+            fixed += bool(r["maglia"])
+    print(f"Maglie mancanti recuperate da altre partite: {fixed}")
     order = {"titolare": 0, "subentrato": 1, "non entrato": 2}
-    rows.sort(key=lambda r: (r["n"], r["squadra"], order[r["stato"]], r["maglia"] or 99))
+    rows.sort(key=lambda r: (r["n"], r["squadra"], order[r["stato"]], int(r["maglia"] or 99)))
     with open(HERE / "output" / "rose.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()

@@ -612,7 +612,8 @@ def lineups(T, P, R, K, teams):
             tip = f'{r["giocatore"]} – {r["ruolo_iniziale"]}' + (f' – xT {f(p.get("xt"))}, xG {f(p.get("xg"))}' if p else "")
             marks.append(
                 f'<g><title>{e(tip)}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{c}" stroke="var(--card)" stroke-width="0.5"/>'
-                f'<text x="{x:.1f}" y="{y + 1.1:.1f}" font-size="2.9" fill="#fff" text-anchor="middle" font-weight="700">{e(r["maglia"])}</text>'
+                f'<text x="{x:.1f}" y="{y + 1.1:.1f}" font-size="{2.9 if r["maglia"] else 2.2}" fill="#fff" text-anchor="middle" '
+                f'font-weight="700">{e(r["maglia"] or initials(pitch_name(r)))}</text>'
                 f'<text x="{x:.1f}" y="{y + 5.6:.1f}" font-size="2.3" fill="var(--ink)" text-anchor="middle" '
                 f'stroke="var(--pitch)" stroke-width="0.6" paint-order="stroke">{name}</text>{sub_txt}{"".join(badges)}</g>')
     head = "".join(f'<div style="text-align:{"left" if i == 0 else "right"}"><span class="dot" style="background:{COL[i]}"></span>'
@@ -662,7 +663,14 @@ def bench(t, R, K, team, color):
     return "".join(out)
 
 
+def initials(name):
+    return "".join(w[0] for w in name.split()[:2]).upper()
+
+
 def report(T, P, S, E, K, teams, R=()):
+    nums = {r["player_id"]: r["maglia"] for r in R}
+    for p in P:  # i numeri di rose.csv includono quelli recuperati quando la fonte riporta 0
+        p["maglia"] = nums.get(p["player_id"], "" if p["maglia"] in ("0", "") else p["maglia"])
     h, a = T[teams[0]], T[teams[1]]
     has360 = h.get("dati_360") == "1"
     text, keys = summary(T, P, teams)
