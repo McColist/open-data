@@ -15,7 +15,7 @@ python delta_scout/report.py --n 778 --out C:\DeltaScout\report
 Apri `delta_scout/report/index.html` nel browser: elenco di tutte le partite, ognuna con analisi scritta automatica
 (risultato vs xG, controllo del gioco, pressing/PPDA, qualità delle occasioni, giocatori chiave), statistiche di squadra
 a confronto, andamento xG, mappa dei tiri, reti di passaggi e tabelle complete dei giocatori con heatmap.
-`report.py` usa solo i CSV in `output/` (non servono i dati grezzi); tutte le partite in meno di un minuto, circa 420 MB.
+`report.py` usa solo i CSV in `output/` (non servono i dati grezzi); tutte le partite in meno di un minuto, circa 630 MB.
 Esempio: `esempio_report_778.html` (finale Mondiali 2022).
 
 Solo Python 3 standard, nessuna dipendenza. Tutte le partite: circa 20–30 minuti con 4 core.
