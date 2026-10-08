@@ -19,7 +19,7 @@ function study(id){return D.studies.filter(function(s){return s.id===id})[0]}
 async function frame(st,fmt,page,tot){var W=FMT[fmt][0],H=FMT[fmt][1],P=Math.round(W*0.05);var cv=document.createElement('canvas');cv.width=W;cv.height=H;
 var ctx=cv.getContext('2d');ctx.fillStyle=PAL['--bg'];ctx.fillRect(0,0,W,H);ctx.textBaseline='top';
 ctx.drawImage(await img(D.logo),P,P,60,60);ctx.fillStyle='#fff';ctx.font='700 28px '+FONT;ctx.fillText('DELTA SCOUT',P+78,P+2);
-ctx.fillStyle=PAL['--muted'];ctx.font='600 20px '+FONT;ctx.fillText(('Studio '+st.num+' · '+st.kicker).toUpperCase(),P+78,P+38);
+ctx.fillStyle=PAL['--muted'];ctx.font='600 20px '+FONT;ctx.fillText((st.tag||('Studio '+st.num+' · '+st.kicker)).toUpperCase(),P+78,P+38);
 if(page){ctx.textAlign='right';ctx.font='600 22px '+FONT;ctx.fillText(page+'/'+tot,W-P,P+18);ctx.textAlign='left'}
 var sb=await img(D.sb),fh=56,sw=sb.width*0.8;rr(ctx,W-P-sw-20,H-P-fh+10,sw+20,40,8,'#fff');ctx.drawImage(sb,W-P-sw-10,H-P-fh+14,sw,sb.height*0.8);
 ctx.fillStyle=PAL['--muted'];ctx.font='20px '+FONT;ctx.textAlign='right';ctx.fillText('Dati:',W-P-sw-32,H-P-fh+20);ctx.textAlign='left';
@@ -65,7 +65,7 @@ fit(ctx,st.caveat,P,y,aw,f.bottom-y,wide?26:32,16,400,PAL['--ink2']);return f.cv
 async function cta(st,fmt){var f=await frame(st,fmt,5,5),ctx=f.ctx,W=f.W,H=f.H,P=f.P,aw=W-2*P,wide=W>H;var s=wide?190:260,y=f.top+(wide?0:60);
 ctx.drawImage(await img(D.logo),(W-s)/2,y,s,s);y+=s+50;ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='750 '+(wide?50:60)+'px '+FONT;
 ctx.fillText('Segui Delta Scout',W/2,y);y+=wide?74:90;ctx.fillStyle=PAL['--ink2'];ctx.font=(wide?30:36)+'px '+FONT;
-ctx.fillText('Uno studio sui dati del calcio ogni settimana',W/2,y);y+=wide?70:110;
+ctx.fillText(D.cta||'Uno studio sui dati del calcio ogni settimana',W/2,y);y+=wide?70:110;
 if(st.next){ctx.fillStyle=PAL['--muted'];ctx.font='600 '+(wide?24:28)+'px '+FONT;ctx.fillText('LA PROSSIMA SETTIMANA',W/2,y);y+=wide?42:50;
 ctx.textAlign='left';ctx.font='600 '+(wide?32:40)+'px '+FONT;var lines=[],words=st.next.split(' '),line='';
 words.forEach(function(w){var t=line?line+' '+w:w;if(ctx.measureText(t).width>aw-40&&line){lines.push(line);line=w}else line=t});lines.push(line);

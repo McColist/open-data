@@ -140,8 +140,16 @@ tabella dei dati. Gli studi basati sugli eventi escludono le partite in cui la f
 due squadre (100 partite: ISL 2021/22, WSL 2019–21, Ligue 1 2015/16, NWSL 2018), riconosciute da 0 passaggi o da gol
 degli eventi diversi dal risultato.
 
-**Uno studio a settimana.** La pagina contiene il piano editoriale (`CALENDAR` in `studi2.py`, settimane 1–22) e per ogni
-studio un **pack** scaricabile in 4:5, 1:1, 9:16 o 16:9: zip con 5 slide PNG (copertina, grafico, 3 cose da sapere, metodo
+**Il dato spiegato.** `dati.html` (generato da `studi.py` con le schede di `spiegati.py`): 22 schede, una per ogni metrica
+dei report (xG, xA, dribbling, PPDA, parate, SCA, possesso, punti attesi, conduzioni e passaggi progressivi, field tilt,
+pressioni, xT, Elo, momentum, xG chain, rete di passaggi, recuperi alti, voto Delta Scout, dati 360, heatmap, azioni
+difensive). Ogni scheda ha definizione semplice, come si legge, valori tipici e record calcolati dal database, esempi da
+partite note (Maradona 1986, finale 2022, finale di Champions 2012, Leicester 2015/16…), metodo e limiti, e lo stesso pack
+social degli studi. Le partite con possesso anomalo nella fonte (durate di eventi fuori scala, 6 partite) sono escluse dagli
+studi e dalle schede sul possesso.
+
+**Uno studio e un dato a settimana.** Il piano editoriale (`CALENDAR` in `studi2.py` e `CALENDAR_DATI` in `spiegati.py`, settimane 1–22)
+abbina ogni settimana uno studio e un dato spiegato; per ogni contenuto c'è un **pack** scaricabile in 4:5, 1:1, 9:16 o 16:9: zip con 5 slide PNG (copertina, grafico, 3 cose da sapere, metodo
 e limiti, chiusura con lo studio della settimana dopo), il carosello in PDF per LinkedIn e `testi.txt` con i testi pronti
 per LinkedIn, Instagram, thread di X (tweet sotto i 280 caratteri), copione TikTok/Reels di 30 secondi, testo alternativo
 e hashtag. Gli stessi testi sono nella pagina, sotto ogni studio, con il pulsante «Copia i testi».

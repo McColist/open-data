@@ -177,7 +177,7 @@ def stacked100(rows, cats, colors, w=640, row=46, label_w=230):
         y = 8 + i * row
         x = label_w
         s.append(f'<text x="{label_w - 10}" y="{y + 14}" font-size="12" fill="var(--ink)" text-anchor="end">{e(lab)}</text>'
-                 f'<text x="{label_w - 10}" y="{y + 28}" font-size="10" fill="var(--muted)" text-anchor="end">{n} partite</text>')
+                 f'<text x="{label_w - 10}" y="{y + 28}" font-size="10" fill="var(--muted)" text-anchor="end">{n if isinstance(n, str) else f"{n} partite"}</text>')
         for j, v in enumerate(vals):
             bw = span * v / 100
             s.append(f'<g><title>{e(lab)} – {e(cats[j])}: {fmt(v)}%</title><rect x="{x:.1f}" y="{y}" width="{max(bw - 2, 0):.1f}" height="24" '
@@ -524,7 +524,7 @@ def home_study(T):
         table=tab)
 
 
-def possession_study(T):
+def possession_study(T, n_anom=0):
     b = defaultdict(lambda: [0, 0, 0, 0.0])
     for r in T:
         if is_f(r["competizione"]):
@@ -549,7 +549,7 @@ def possession_study(T):
         body=["La relazione esiste ed è chiara (più possesso, più xG, più vittorie), ma è molto meno netta di quanto suggerisca il dibattito "
               "sul 'tiki-taka'."],
         method="Tutte le partite maschili, per squadra; possesso = quota del tempo di possesso. Barre: percentuale di vittorie; linee: "
-               "intervallo di confidenza al 95%.",
+               f"intervallo di confidenza al 95%. Escluse {n_anom} partite con possesso anomalo nella fonte.",
         caveat="Il possesso dipende anche dal risultato: chi è in vantaggio spesso lascia la palla all'avversario. Il dataset contiene "
                "moltissime partite del Barcellona, che alza la quota di vittorie nelle fasce di possesso alte.",
         table=tab)
@@ -674,7 +674,7 @@ def legends_study(T):
     return dict(
         id="leggende", kicker="Squadre", title="Le squadre più dominanti del dataset",
         headline=f"Il Barcellona femminile 2023/24 è un caso a parte: {fmt(bw['xg'] / bw['g'], 2)} xG creati e {fmt(bw['xg_subiti'] / bw['g'], 2)} "
-                 f"concessi a partita, con l'{fmt(bw['field_tilt_pct'] / bw['g'], 0)}% del gioco nella metà avversaria.",
+                 f"concessi a partita, con l'{fmt(bw['field_tilt_pct'] / bw['g'], 0)}% dei passaggi nell'ultimo terzo di campo.",
         chart=chart, legend=legend([("var(--s1)", "Squadre citate"), ("var(--context)", "Altre stagioni con almeno 20 partite")]),
         body=[f"Gli Invincibili dell'Arsenal 2003/04 non dominavano il territorio: field tilt medio del {fmt(ar['field_tilt_pct'] / ar['g'], 0)}% "
               "(meno della metà del gioco offensivo) e 1,60 xG a partita. Erano una squadra di efficacia e ripartenze, non di dominio."],
@@ -794,19 +794,62 @@ def card(i, st):
             f'<div class="exp one"><span>📷 Solo il grafico:</span>{btn}</div></section>')
 
 
+def poss_anomalies(T):
+    """Partite con possesso non affidabile: fuori scala o lontano oltre 15 punti dalla quota dei passaggi (durate di eventi anomale)."""
+    M = defaultdict(list)
+    for r in T:
+        M[r["n"]].append(r)
+    out = set()
+    for n, rs in M.items():
+        if len(rs) != 2:
+            continue
+        a, b = rs
+        tp = num(a["passaggi"]) + num(b["passaggi"])
+        p = num(a["possesso_pct"])
+        if not 0 <= p <= 100 or (tp and abs(p - 100 * num(a["passaggi"]) / tp) > 15):
+            out.add(n)
+    return out
+
+
+def write_page(items, fname, title, h1, intro, cal, cta, nav, all_label):
+    import report  # logo, copyright, esportazione condivisi con i report
+    toc = "".join(f'<a href="#{s["id"]}">{i}. {e(s["title"])}</a>' for i, s in enumerate(items, 1))
+    cards = "".join(card(i, s) for i, s in enumerate(items, 1))
+    data = {"logo": report.FAVICON, "sb": report.SB_B64, "cta": cta,
+            "studies": [{"id": s["id"], "num": i, "tag": s["tag"], "kicker": s["kicker"], "title": s["title"], "headline": s["headline"],
+                         "hook": s["hook"], "body": s["body"], "method": s["method"], "caveat": s["caveat"], "week": s["week"],
+                         "next": s["next"], "texts": s["texts"],
+                         "foot": "Campione e metodo: " + s["method"][:220] + ("…" if len(s["method"]) > 220 else "")}
+                        for i, s in enumerate(items, 1)]}
+    js = (HERE / "studi_export.js").read_text(encoding="utf-8")
+    data_js = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    exp_btns = "".join(f'<button data-f="{k}">{k}</button>' for k in ("4:5", "1:1", "9:16", "16:9"))
+    page = (f'<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>{e(title)}</title>{report.HEAD_EXTRA}<style>{report.CSS}{CSS}</style></head><body><main>'
+            f'{report.brand_bar(nav)}'
+            f'<div class="card"><div class="kicker">{e(title)}</div><h1>{e(h1)}</h1><p>{intro}</p><div class="toc">{toc}</div>{cal}'
+            f'<div class="exp" id="exp-all"><span>📷 {e(all_label)} (zip + PDF):</span>{exp_btns}</div><p class="sub" id="exp-status"></p></div>'
+            f'{cards}{report.footer()}</main>'
+            f'<script type="application/json" id="studi-data">{data_js}</script>'
+            f'{report.PROTECT_JS}<script>{js}</script></body></html>')
+    (HERE / fname).write_text(page, encoding="utf-8")
+
+
 def main():
     T = load("squadre.csv")
     SH = load("tiri.csv")
     K = load("eventi_chiave.csv")
     C = load("carriere_giocatori.csv")
     bad = bad_matches(T, K)
+    anom = poss_anomalies(T)
     Tv = [r for r in T if r["n"] not in bad]  # studi basati sugli eventi: solo partite con i dati di entrambe le squadre
     tabs = season_tables(T)
     fin, ranked = finishing_study([r for r in C if r["player_id"] != "5503"])
     studies = [eras_study(Tv, SH), worldcup_study(Tv), gender_style_study(Tv), gender_skill_study(SH), olympic_study(SH, Tv),
-               home_study(T), timing_study(K), possession_study(Tv), luck_study(tabs), leicester_study(tabs, T), legends_study(Tv),
-               fin, upsets_study(T, K, SH)]
+               home_study(T), timing_study(K), possession_study([r for r in Tv if r["n"] not in anom], len(anom)), luck_study(tabs),
+               leicester_study(tabs, T), legends_study(Tv), fin, upsets_study(T, K, SH)]
     import studi2 as s2
+    import spiegati as sp
     G = load("giocatori.csv")
     WC = [r for r in Tv if r["competizione"] == "FIFA World Cup" and r["stagione"] in ("2018", "2022")]
     studies += [s2.barca_study(Tv), s2.messi_study(Tv, G), s2.wc_finals_study(T), s2.ucl_finals_study(T), s2.pele_study(G, T),
@@ -815,42 +858,41 @@ def main():
         if st["id"] in ("epoche", "mondiali", "stile", "olimpici", "possesso", "leggende", "barcellona", "messi"):
             st["method"] += f" Escluse {len(bad)} partite in cui la fonte non contiene gli eventi di una delle due squadre."
         st.setdefault("hook", s2.HOOKS.get(st["id"], st["title"]))
-    week = {sid: i for i, sid in enumerate(s2.CALENDAR, 1)}
-    assert sorted(week) == sorted(s["id"] for s in studies), "calendario e studi non coincidono"
-    by_week = {week[s["id"]]: s for s in studies}
-    for st in studies:
-        st["week"] = week[st["id"]]
-        nxt = by_week.get(st["week"] + 1)
-        st["next"] = nxt["title"] if nxt else ""
-        st["texts"] = s2.pack_texts(st, st["week"], st["next"] or "a presto")
-    import report  # logo, copyright, esportazione condivisi con i report
-    toc = "".join(f'<a href="#{s["id"]}">{i}. {e(s["title"])}</a>' for i, s in enumerate(studies, 1))
-    cal = table(["Settimana", "Studio", "Tema"], [[f"Settimana {w}", f"{studies.index(st) + 1}. {st['title']}", st["kicker"]]
-                                                for w, st in sorted(by_week.items())]).replace("Tabella dei dati", "Piano editoriale: uno studio a settimana", 1)
-    cards = "".join(card(i, s) for i, s in enumerate(studies, 1))
-    data = {"logo": report.FAVICON, "sb": report.SB_B64,
-            "studies": [{"id": s["id"], "num": i, "kicker": s["kicker"], "title": s["title"], "headline": s["headline"], "hook": s["hook"],
-                         "body": s["body"], "method": s["method"], "caveat": s["caveat"], "week": s["week"], "next": s["next"],
-                         "texts": s["texts"],
-                         "foot": "Campione e metodo: " + s["method"][:220] + ("…" if len(s["method"]) > 220 else "")}
-                        for i, s in enumerate(studies, 1)]}
-    js = (HERE / "studi_export.js").read_text(encoding="utf-8")
-    nav = '<a href="index.html">Report partite</a> <a href="classifiche.html">Classifiche di tutti i tempi</a>'
-    data_js = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
-    exp_btns = "".join(f'<button data-f="{k}">{k}</button>' for k in ("4:5", "1:1", "9:16", "16:9"))
-    page = (f'<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>Delta Scout – Studi</title>{report.HEAD_EXTRA}<style>{report.CSS}{CSS}</style></head><body><main>'
-            f'{report.brand_bar(nav)}'
-            f'<div class="card"><div class="kicker">Delta Scout · Studi</div><h1>Cosa dicono 3.961 partite: {len(studies)} studi</h1>'
-            f'<p>Studi sul dataset StatsBomb Open Data: come è cambiato il calcio, le differenze tra maschile e femminile, squadre, fortuna, '
-            f'finalizzazione, partite anomale, finali e leggende prima dell’era dei dati. Ogni studio riporta campione, metodo e limiti; i numeri sono ricalcolati dai dati a ogni '
-            f'esecuzione di <code>studi.py</code>. Ogni studio ha il suo pack social: carosello di 5 slide (PNG e PDF) e testi pronti per LinkedIn, Instagram, X e TikTok.</p><div class="toc">{toc}</div>{cal}'
-            f'<div class="exp" id="exp-all"><span>📷 Esporta tutti gli studi (zip + PDF):</span>{exp_btns}</div><p class="sub" id="exp-status"></p></div>{cards}{report.footer()}</main>'
-            f'<script type="application/json" id="studi-data">{data_js}</script>'
-            f'{report.PROTECT_JS}<script>{js}</script></body></html>')
-    (HERE / "studi.html").write_text(page, encoding="utf-8")
-    print(f"{len(studies)} studi in studi.html")
-    for s in studies:
+    dati = sp.build(T, Tv, G, SH, C, load("voti.csv"), load("elo.csv"), load("rete_passaggi.csv"), bad, anom)
+    s2.TAGS.update(sp.TAGS)
+    pages = [(studies, s2.CALENDAR, "Studio", "uno studio nuovo"), (dati, sp.CALENDAR_DATI, "Il dato spiegato", "spieghiamo un dato")]
+    weeks = {}
+    for items, calendar, label, serie in pages:
+        week = {sid: i for i, sid in enumerate(calendar, 1)}
+        assert sorted(week) == sorted(s["id"] for s in items), f"calendario e contenuti non coincidono ({label})"
+        by_week = {week[s["id"]]: s for s in items}
+        for i, st in enumerate(items, 1):
+            st["week"] = week[st["id"]]
+            st["tag"] = f"Studio {i} · {st['kicker']}" if label == "Studio" else "Il dato spiegato"
+            nxt = by_week.get(st["week"] + 1)
+            st["next"] = nxt["title"] if nxt else ""
+            st["texts"] = s2.pack_texts(st, st["week"], st["next"] or "a presto", serie)
+        weeks[label] = by_week
+    num_of = {s["id"]: i for items, *_ in pages for i, s in enumerate(items, 1)}
+    cal_rows = [[f"Settimana {w}", f'<a href="studi.html#{weeks["Studio"][w]["id"]}">{num_of[weeks["Studio"][w]["id"]]}. {e(weeks["Studio"][w]["title"])}</a>',
+                 f'<a href="dati.html#{weeks["Il dato spiegato"][w]["id"]}">{e(weeks["Il dato spiegato"][w]["title"])}</a>'] for w in sorted(weeks["Studio"])]
+    cal = ('<details class="tview" open><summary>Piano editoriale: ogni settimana uno studio e un dato spiegato</summary><div class="scroll"><table>'
+           '<tr><th>Settimana</th><th>Studio</th><th>Il dato spiegato</th></tr>' +
+           "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in cal_rows) + "</table></div></details>")
+    nav = ('<a href="index.html">Report partite</a> <a href="classifiche.html">Classifiche di tutti i tempi</a> '
+           '<a href="studi.html">Studi</a> <a href="dati.html">Il dato spiegato</a>')
+    pack = "Ogni contenuto ha il suo pack social: carosello di 5 slide (PNG e PDF) e testi pronti per LinkedIn, Instagram, X e TikTok."
+    write_page(studies, "studi.html", "Delta Scout · Studi", f"Cosa dicono 3.961 partite: {len(studies)} studi",
+               "Studi sul dataset StatsBomb Open Data: come è cambiato il calcio, le differenze tra maschile e femminile, squadre, fortuna, "
+               "finalizzazione, partite anomale, finali e leggende prima dell’era dei dati. Ogni studio riporta campione, metodo e limiti; i "
+               "numeri sono ricalcolati dai dati a ogni esecuzione di <code>studi.py</code>. " + pack,
+               cal, "Uno studio sui dati del calcio ogni settimana", nav, "Esporta tutti gli studi")
+    write_page(dati, "dati.html", "Delta Scout · Il dato spiegato", f"Il dato spiegato: {len(dati)} metriche con esempi veri",
+               "Cosa vogliono dire xG, PPDA, field tilt, xT e tutti gli altri numeri dei report Delta Scout. Per ogni metrica: definizione "
+               "in parole semplici, come si legge, valori tipici e record presi dalle 3.961 partite del database, come è calcolata e i suoi "
+               "limiti. " + pack, cal, "Ogni settimana spieghiamo un dato del calcio", nav, "Esporta tutte le schede")
+    print(f"{len(studies)} studi in studi.html, {len(dati)} schede in dati.html")
+    for s in studies + dati:
         print(f"- {s['title']}: {s['headline']}")
 
 

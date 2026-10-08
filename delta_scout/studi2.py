@@ -462,7 +462,7 @@ def holland74_study(T, G, WC):
     chart = strips([
         ("PPDA: passaggi concessi per azione difensiva", 0, 45, [num(r["ppda"]) for r in WC],
          [(num(r["ppda"]), it(r["avversario"])) for r in nl], "← pressing più intenso"),
-        ("Field tilt: quota di gioco nella metà campo offensiva", 10, 90, [num(r["field_tilt_pct"]) for r in WC],
+        ("Field tilt: quota dei passaggi nell'ultimo terzo", 10, 90, [num(r["field_tilt_pct"]) for r in WC],
          [(num(r["field_tilt_pct"]), it(r["avversario"])) for r in nl], "più dominio →")])
     pl = defaultdict(lambda: defaultdict(float))
     for r in G:
@@ -483,16 +483,16 @@ def holland74_study(T, G, WC):
     return dict(
         id="olanda-74", kicker="Prima dei dati", title="Olanda 1974: il calcio totale di Cruyff e Neeskens, misurato",
         headline=f"PPDA medio {fmt(ppda)}: ai Mondiali 2018 e 2022 solo il {fmt(below, 0)}% delle squadre ha pressato altrettanto in una "
-                 f"partita. E teneva il {fmt(tilt, 0)}% del gioco nella metà avversaria: oggi ci arriva il {fmt(above, 0)}%.",
+                 f"partita. E teneva il {fmt(tilt, 0)}% dei passaggi nell'ultimo terzo: oggi ci arriva il {fmt(above, 0)}%.",
         hook="Nel 1974 l'Olanda pressava più delle squadre di oggi. I numeri.",
         chart=chart, legend=legend([("var(--context)", f"Squadre dei Mondiali 2018 e 2022 ({len(WC)} prestazioni)"),
                                     ("var(--s1)", "Olanda 1974 (etichetta = avversario)")]),
         body=[f"Cruyff era il motore offensivo: {int(c['dribbling'])} dribbling tentati ({fmt(100 * c['dribbling'] / tot('dribbling'), 0)}% della "
               f"squadra) e {int(c['conduzioni_progressive'])} conduzioni progressive ({fmt(100 * c['conduzioni_progressive'] / tot('conduzioni_progressive'), 0)}%), "
-              f"più {int(c['gol'])} gol e {int(c['assist'])} assist in 5 partite. Ma pressava anche: {int(c['pressioni_alte'])} pressioni nella metà "
-              "campo avversaria.",
+              f"più {int(c['gol'])} gol e {int(c['assist'])} assist in 5 partite. Ma pressava anche: {int(c['pressioni_alte'])} pressioni nell'ultimo "
+              "terzo di campo.",
               f"Neeskens era l'altra metà del sistema: {int(n_['gol'])} gol da centrocampista (uno su rigore, al 2' della finale) "
-              f"e {int(n_['recuperi_alti'])} palloni recuperati nella metà campo avversaria"
+              f"e {int(n_['recuperi_alti'])} palloni recuperati nell'ultimo terzo di campo"
               + (", più di chiunque altro nella squadra." if top_rec is n_ else ".")],
         method="5 partite dell'Olanda al Mondiale 1974 presenti negli Open Data StatsBomb (mancano Uruguay e Bulgaria nel primo girone). "
                "PPDA = passaggi dell'avversario nei suoi 60 metri diviso le azioni difensive nella stessa zona. Field tilt = quota dei "
@@ -658,21 +658,21 @@ def split_tweets(parts, limit=270):
     return [f"{i}/{n} {t}" for i, t in enumerate(out, 1)]
 
 
-def pack_texts(st, week, nxt):
+def pack_texts(st, week, nxt, serie="uno studio nuovo"):
     tags = f"{TAGS.get(st['id'], '')} {BASE_TAGS}".strip()
     src = "Dati: StatsBomb Open Data. Analisi e grafici: Delta Scout."
     body = " ".join(st["body"])
     li = (f"{st['hook']}\n\n{st['headline']}\n\n" + "\n".join(f"→ {b}" for b in st["body"]) +
           f"\n\nCome l'abbiamo calcolato: {st['method']}\n\nAttenzione: {st['caveat']}\n\n{src}\n"
-          f"Ogni settimana uno studio nuovo: la prossima, «{nxt}».\n\n{tags}")
+          f"Ogni settimana {serie}: la prossima settimana, «{nxt}».\n\n{tags}")
     ig = (f"{st['hook']}\n\n{st['headline']}\n\nScorri il carosello: il grafico, le 3 cose da sapere e i limiti del dato. 👉\n\n"
           f"{src}\n\n{tags} #calcioitaliano #datavisualization #sportanalytics")
     x = split_tweets([st["hook"] + " 🧵", st["headline"], body, "Metodo: " + st["method"], "Limiti: " + st["caveat"] + " " + src])
     tt = (f"[0–3 s, testo a schermo] {st['hook']}\n[3–12 s] {st['headline']}\n[12–25 s] {st['body'][0]}\n"
-          f"[25–30 s] Attenzione: {st['caveat'].split('. ')[0].rstrip('.')}. Dati StatsBomb Open Data. Segui Delta Scout per lo studio della prossima settimana.\n\n"
+          f"[25–30 s] Attenzione: {st['caveat'].split('. ')[0].rstrip('.')}. Dati StatsBomb Open Data. Segui Delta Scout per il prossimo contenuto.\n\n"
           f"Didascalia: {st['hook']} {TAGS.get(st['id'], '')} #DeltaScout #calcio #footballtiktok")
     alt = f"Grafico Delta Scout: {st['title']}. {st['headline']}"
-    return (f"DELTA SCOUT · SETTIMANA {week} · {st['title']}\n{'=' * 60}\n\n"
+    return (f"DELTA SCOUT · SETTIMANA {week} · {st['kicker'].upper()} · {st['title']}\n{'=' * 60}\n\n"
             f"LINKEDIN\n{'-' * 60}\n{li}\n\n"
             f"INSTAGRAM (carosello)\n{'-' * 60}\n{ig}\n\n"
             f"X / TWITTER (thread)\n{'-' * 60}\n" + "\n\n".join(x) + "\n\n"
