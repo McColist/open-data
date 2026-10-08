@@ -28,6 +28,24 @@ TOUCH_TYPES = {"Pass", "Ball Receipt*", "Carry", "Shot", "Dribble", "Ball Recove
                "Interception", "Miscontrol", "Dispossessed", "Duel", "Goal Keeper", "50/50", "Block"}
 
 
+def load_xt():
+    f = Path(__file__).resolve().parent / "xt_griglia.json"
+    return json.loads(f.read_text(encoding="utf-8"))["griglia"] if f.exists() else None
+
+
+XT = load_xt()
+
+
+def xt_at(p):
+    x = min(int(p[0] / 120 * 16), 15)
+    y = min(int(p[1] / 80 * 12), 11)
+    return XT[y][x]
+
+
+def xt_gain(start, end):
+    return xt_at(end) - xt_at(start) if XT and start and end else 0.0
+
+
 def dist(a, b):
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
@@ -281,6 +299,9 @@ def analyse(meta):
                 P["lanci_lunghi"] += 1
                 if ok:
                     P["lanci_lunghi_riusciti"] += 1
+            if ok:
+                gain = xt_gain(loc, end)
+                P["xt"] += gain; P["xt_passaggi"] += gain; t["xt"] += gain
             if ok and ptype not in SET_PIECE_PASSES:
                 if is_progressive(loc, end):
                     t["passaggi_progressivi"] += 1; P["passaggi_progressivi"] += 1
@@ -306,6 +327,8 @@ def analyse(meta):
 
         elif typ == "Carry":
             end = e["carry"]["end_location"]
+            gain = xt_gain(loc, end)
+            P["xt"] += gain; P["xt_conduzioni"] += gain; t["xt"] += gain
             if is_progressive(loc, end, 5):
                 t["conduzioni_progressive"] += 1; P["conduzioni_progressive"] += 1
             if in_box(end) and not in_box(loc):
@@ -462,7 +485,7 @@ def analyse(meta):
         r = {**base, "squadra": team, "avversario": opp, "casa_trasferta": "casa" if i == 0 else "trasferta",
              "gol": score[team], "gol_subiti": score[opp],
              "esito": "V" if score[team] > score[opp] else "P" if score[team] < score[opp] else "N"}
-        for k in ("xg", "npxg", "xg_subiti", "xg_1t", "xg_2t", "xg_supplt", "tiri", "tiri_in_porta",
+        for k in ("xt", "xg", "npxg", "xg_subiti", "xg_1t", "xg_2t", "xg_supplt", "tiri", "tiri_in_porta",
                   "tiri_in_area", "passaggi", "passaggi_riusciti", "passaggi_progressivi",
                   "passaggi_terzo_finale", "passaggi_in_area", "passaggi_chiave", "cross", "cross_riusciti",
                   "conduzioni_progressive", "dribbling", "dribbling_riusciti", "pressioni", "pressioni_alte",
@@ -514,7 +537,7 @@ def analyse(meta):
         on = opp_near.get(key)
         opp = teams[1] if team == teams[0] else teams[0]
         r = {**base, "squadra": team, "avversario": opp, "player_id": pid, **info[key], "minuti": mins}
-        for k in ("gol", "gol_np", "assist", "xg", "npxg", "xa", "tiri", "tiri_in_porta", "passaggi_chiave",
+        for k in ("gol", "gol_np", "assist", "xg", "npxg", "xa", "xt", "xt_passaggi", "xt_conduzioni", "tiri", "tiri_in_porta", "passaggi_chiave",
                   "passaggi", "passaggi_riusciti", "passaggi_progressivi", "passaggi_terzo_finale",
                   "passaggi_in_area", "passaggi_sotto_pressione", "passaggi_sotto_pressione_riusciti",
                   "cross", "cross_riusciti", "filtranti", "cambi_gioco", "lanci_lunghi", "lanci_lunghi_riusciti",

@@ -8,6 +8,9 @@ Dati: StatsBomb Open Data (citare StatsBomb come fonte se si pubblica).
 python delta_scout/lista_partite.py              # rigenera partite.csv / partite.md (lista numerata)
 python delta_scout/analizza.py                   # analizza tutte le partite
 python delta_scout/analizza.py --n 778,831-894   # solo alcuni numeri della lista
+python delta_scout/xt.py                         # stima la griglia xT (xt_griglia.json), prima di analizza.py
+python delta_scout/elo.py                        # rating Elo delle squadre -> output/elo.csv
+python delta_scout/anagrafica.py                 # età, altezza, link Transfermarkt/FBref da Reep -> output/anagrafica_giocatori.csv
 python delta_scout/report.py                     # report HTML di ogni partita in delta_scout/report/
 python delta_scout/report.py --n 778 --out C:\DeltaScout\report
 ```
@@ -79,6 +82,23 @@ Anagrafica: `player_id, giocatore, soprannome, maglia, ruolo` (ruolo iniziale), 
 | eventi_360, avversari_5m_medi_360, azioni_pressate_360_pct | come sopra, per il singolo giocatore |
 
 Per confronti tra giocatori conviene normalizzare per 90 minuti: `valore / minuti * 90` (filtrando ad es. minuti ≥ 30).
+
+## xT (Expected Threat)
+
+Griglia 16×12 stimata con il metodo di Karun Singh su tutte le partite del dataset (`xt_griglia.json`).
+Ogni passaggio o conduzione riuscita vale xT(arrivo) − xT(partenza): misura quanto il giocatore ha avvicinato la squadra al gol.
+Colonne: `xt` (squadre e giocatori), `xt_passaggi`, `xt_conduzioni` (giocatori).
+
+## output/elo.csv
+
+Rating Elo pre e post partita per squadra (K=30, scarto gol, +60 in casa, 0 nei tornei), `prob_vittoria_attesa` e
+`partite_storia` (partite precedenti nel dataset: sotto 10 il valore è poco affidabile, perché alcune squadre sono coperte solo in parte).
+
+## output/anagrafica_giocatori.csv
+
+Collegamento con [Reep](https://github.com/withqwerty/reep) (licenza CC0) per nome, nazionalità e data di nascita plausibile:
+`data_nascita, altezza_cm, ruolo, transfermarkt, fbref, wikidata, affidabilita`. Circa l'80% dei giocatori è collegato;
+i casi ambigui (omonimi) sono lasciati vuoti invece di rischiare un collegamento sbagliato.
 
 ## output/tiri.csv – un tiro per riga
 

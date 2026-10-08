@@ -18,7 +18,7 @@ HERE = Path(__file__).resolve().parent
 COL = ("#2a6fdb", "#e0533d")  # casa, trasferta
 
 TEAM_ROWS = [
-    ("Gol", "gol", 0), ("xG", "xg", 2), ("xG senza rigori", "npxg", 2), ("Tiri", "tiri", 0),
+    ("Gol", "gol", 0), ("xG", "xg", 2), ("xT – minaccia creata con passaggi e conduzioni", "xt", 2), ("xG senza rigori", "npxg", 2), ("Tiri", "tiri", 0),
     ("Tiri in porta", "tiri_in_porta", 0), ("Tiri in area", "tiri_in_area", 0), ("xG per tiro", "xg_per_tiro", 3),
     ("Possesso %", "possesso_pct", 1), ("Field tilt %", "field_tilt_pct", 1), ("PPDA (basso = pressing intenso)", "ppda", 2),
     ("Passaggi", "passaggi", 0), ("Precisione passaggi %", "precisione_passaggi_pct", 1),
@@ -66,6 +66,18 @@ border:1px solid var(--line);background:transparent;color:var(--ink);cursor:poin
 .st td,.st th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right}.st th{color:var(--mute);font-weight:600}.st td:first-child,.st th:first-child{text-align:left}
 .kv{display:flex;flex-wrap:wrap;gap:4px 18px;justify-content:center;margin-top:8px}.legend{font-size:12px;color:var(--mute);margin-top:6px}
 """
+
+
+ANAG, ELO = {}, {}
+
+
+def age(p, data):
+    dob = ANAG.get(p["player_id"], {}).get("data_nascita")
+    if not dob:
+        return ""
+    y, m, d = map(int, data.split("-"))
+    by, bm, bd = map(int, dob.split("-"))
+    return str(y - by - ((m, d) < (bm, bd)))
 
 
 def f(v, d=2):
@@ -319,7 +331,7 @@ def rv(p, a, b):
 PLAYER_TABS = {
     "Attacco": [("Min", lambda p: f(p["minuti"], 0)), ("Gol", lambda p: g(p, "gol")), ("Ass", lambda p: g(p, "assist")),
                 ("xG", lambda p: g(p, "xg", 2)), ("npxG", lambda p: g(p, "npxg", 2)), ("xA", lambda p: g(p, "xa", 2)),
-                ("xG chain", lambda p: g(p, "xg_chain", 2)), ("SCA", lambda p: g(p, "sca")), ("GCA", lambda p: g(p, "gca")),
+                ("xT", lambda p: g(p, "xt", 2)), ("xG chain", lambda p: g(p, "xg_chain", 2)), ("SCA", lambda p: g(p, "sca")), ("GCA", lambda p: g(p, "gca")),
                 ("Tiri (porta)", lambda p: f'{g(p, "tiri")} ({g(p, "tiri_in_porta")})'), ("Tocchi area", lambda p: g(p, "tocchi_in_area")),
                 ("Dribbling", lambda p: rv(p, "dribbling_riusciti", "dribbling")), ("P. chiave", lambda p: g(p, "passaggi_chiave"))],
     "Passaggi": [("Pass", lambda p: rv(p, "passaggi_riusciti", "passaggi")), ("%", lambda p: g(p, "precisione_passaggi_pct", 0)),
@@ -330,7 +342,8 @@ PLAYER_TABS = {
                  ("Cambi gioco", lambda p: g(p, "cambi_gioco")), ("Lanci lunghi", lambda p: rv(p, "lanci_lunghi_riusciti", "lanci_lunghi")),
                  ("Cross", lambda p: rv(p, "cross_riusciti", "cross")),
                  ("Sotto pressione", lambda p: rv(p, "passaggi_sotto_pressione_riusciti", "passaggi_sotto_pressione"))],
-    "Possesso": [("Azioni con palla", lambda p: g(p, "azioni_con_palla")), ("Ricezioni", lambda p: g(p, "ricezioni")),
+    "Possesso": [("xT passaggi", lambda p: g(p, "xt_passaggi", 2)), ("xT conduzioni", lambda p: g(p, "xt_conduzioni", 2)),
+                 ("Azioni con palla", lambda p: g(p, "azioni_con_palla")), ("Ricezioni", lambda p: g(p, "ricezioni")),
                  ("Ric. terzo finale", lambda p: g(p, "ricezioni_terzo_finale")), ("Cond. progr.", lambda p: g(p, "conduzioni_progressive")),
                  ("Cond. terzo finale", lambda p: g(p, "conduzioni_terzo_finale")), ("Cond. in area", lambda p: g(p, "conduzioni_in_area")),
                  ("Metri progr.", lambda p: g(p, "metri_progressivi", 0)), ("Palle perse", lambda p: g(p, "palle_perse")),
@@ -343,12 +356,24 @@ PLAYER_TABS = {
                ("Aerei", lambda p: f'{g(p, "aerei_vinti")}/{num(p.get("aerei_vinti")) + num(p.get("aerei_persi")):.0f}'),
                ("Contese vinte", lambda p: g(p, "contese_vinte")), ("Saltato", lambda p: g(p, "saltato_da_avversario")),
                ("Falli", lambda p: g(p, "falli_commessi"))],
+    "Profilo": [("Età", lambda p: age(p, p["data"]) or "–"), ("Nato il", lambda p: ANAG.get(p["player_id"], {}).get("data_nascita") or "–"),
+                ("Altezza", lambda p: ANAG.get(p["player_id"], {}).get("altezza_cm") or "–"),
+                ("Nazionalità", lambda p: e(p.get("nazionalita") or "–")),
+                ("Ruolo abituale", lambda p: e(ANAG.get(p["player_id"], {}).get("ruolo") or "–")),
+                ("Link", lambda p: links(p))],
     "Portiere": [("Min", lambda p: f(p["minuti"], 0)), ("Parate", lambda p: g(p, "parate")), ("Gol subiti", lambda p: g(p, "gol_subiti_portiere")),
                  ("Uscite", lambda p: g(p, "uscite")), ("Prese alte", lambda p: g(p, "prese_alte")), ("Pugni", lambda p: g(p, "respinte_di_pugno")),
                  ("Pass", lambda p: rv(p, "passaggi_riusciti", "passaggi")), ("%", lambda p: g(p, "precisione_passaggi_pct", 0)),
                  ("Lungh. media m", lambda p: g(p, "lunghezza_media_passaggi_m", 1)),
                  ("Lanci lunghi", lambda p: rv(p, "lanci_lunghi_riusciti", "lanci_lunghi"))],
 }
+
+def links(p):
+    a = ANAG.get(p["player_id"], {})
+    out = [f'<a href="{e(a[k])}" target="_blank" rel="noopener">{lab}</a>' for k, lab in
+           (("transfermarkt", "Transfermarkt"), ("fbref", "FBref"), ("wikidata", "Wikidata")) if a.get(k)]
+    return " · ".join(out) or "–"
+
 
 TAB_JS = """<script>document.querySelectorAll('.tabs').forEach(function(t){t.addEventListener('click',function(ev){
 var b=ev.target.closest('button');if(!b)return;var box=t.parentNode;t.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});
@@ -366,7 +391,8 @@ def player_tabs(players, color):
         for p in ps:
             card = " 🟥" if p["rossi"] != "0" else " 🟨" if p["gialli"] != "0" else ""
             cls = "" if p["titolare"] == "1" else ' class="sub"'
-            rows.append(f'<tr{cls}><td>{e(p["maglia"] or "")} {e(short(p))}{card}</td>'
+            ag = age(p, p["data"])
+            rows.append(f'<tr{cls}><td>{e(p["maglia"] or "")} {e(short(p))}{card}{f" <span class=sub>({ag})</span>" if ag else ""}</td>'
                         + (f'<td style="text-align:left">{e(p["ruolo"])}</td>' if i == 0 else "")
                         + "".join(f"<td>{fn(p)}</td>" for _, fn in cols)
                         + (f"<td>{mini_heat(p['heatmap_6x4'], color)}</td>" if i == 0 else "") + "</tr>")
@@ -399,6 +425,17 @@ def summary(T, P, teams):
             out.append(f'Pareggio che sta stretto a <b>{e(b["squadra"])}</b>, superiore negli xG ({f(xh)}–{f(xa)}).')
         else:
             out.append(f'Pareggio coerente con le occasioni create ({f(xh)}–{f(xa)} xG).')
+    eh, ea = ELO.get((h["n"], h["squadra"])), ELO.get((a["n"], a["squadra"]))
+    if eh and ea and int(eh["partite_storia"]) >= 10 and int(ea["partite_storia"]) >= 10:
+        ph = num(eh["prob_vittoria_attesa"])
+        fav, pf, und = (h, ph, a) if ph >= 50 else (a, 100 - ph, h)
+        if pf >= 60:
+            res = "ha rispettato il pronostico" if int(fav["gol"]) > int(und["gol"]) else \
+                  "è stata fermata sul pari" if gh == ga else "<b>è stata battuta a sorpresa</b>"
+            out.append(f'Secondo il rating Elo {e(fav["squadra"])} partiva favorita ({f(fav is h and eh["elo_pre"] or ea["elo_pre"], 0)} '
+                       f'contro {f(fav is h and ea["elo_pre"] or eh["elo_pre"], 0)}, aspettativa {pf:.0f}%) e {res}.')
+        else:
+            out.append(f'Alla vigilia le due squadre erano vicine nel rating Elo ({f(eh["elo_pre"], 0)} contro {f(ea["elo_pre"], 0)}).')
     ctrl = h if num(h["field_tilt_pct"]) >= num(a["field_tilt_pct"]) else a
     pos = h if num(h["possesso_pct"]) >= num(a["possesso_pct"]) else a
     if ctrl is pos:
@@ -429,6 +466,11 @@ def summary(T, P, teams):
         p = prog[0]
         keys.append(f'<b>{e(short(p))}</b> ({e(p["squadra"])}) il motore della manovra: {f(p["metri_progressivi"], 0)} metri '
                     f'progressivi, {p["passaggi_progressivi"]} passaggi e {p["conduzioni_progressive"]} conduzioni progressive.')
+    xtp = top(P, lambda p: num(p.get("xt")), minimum=0.05)
+    if xtp:
+        p = xtp[0]
+        keys.append(f'<b>{e(short(p))}</b> ({e(p["squadra"])}) il più bravo a far avanzare la minaccia: {f(p["xt"])} xT '
+                    f'({f(p.get("xt_passaggi"))} con i passaggi, {f(p.get("xt_conduzioni"))} con le conduzioni).')
     cre = top(P, lambda p: num(p["passaggi_chiave"]), minimum=1)
     if cre:
         p = cre[0]
@@ -515,7 +557,12 @@ def mod(t):
 
 
 def coach(t):
-    return f'<br>All. {e(t["allenatore"])}' if t.get("allenatore") else ""
+    s = f'<br>All. {e(t["allenatore"])}' if t.get("allenatore") else ""
+    el = ELO.get((t["n"], t["squadra"]))
+    if el:
+        note = "" if int(el["partite_storia"]) >= 10 else " (stima poco affidabile)"
+        s += f'<br>Elo {el["elo_pre"]} → {el["elo_post"]}{note}'
+    return s
 
 
 def info_line(t):
@@ -550,6 +597,12 @@ def main():
     args = ap.parse_args()
     wanted = parse_n(args.n) if args.n else None
     src, out = Path(args.data), Path(args.out)
+    if (src / "anagrafica_giocatori.csv").exists():
+        with open(src / "anagrafica_giocatori.csv", encoding="utf-8") as fh:
+            ANAG.update({r["player_id"]: r for r in csv.DictReader(fh) if r["reep_id"]})
+    if (src / "elo.csv").exists():
+        with open(src / "elo.csv", encoding="utf-8") as fh:
+            ELO.update({(r["n"], r["squadra"]): r for r in csv.DictReader(fh)})
     out.mkdir(parents=True, exist_ok=True)
 
     # i CSV sono ordinati per n: si leggono in parallelo, una partita alla volta (poca memoria)
