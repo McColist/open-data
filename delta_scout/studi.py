@@ -858,29 +858,38 @@ def main():
         if st["id"] in ("epoche", "mondiali", "stile", "olimpici", "possesso", "leggende", "barcellona", "messi"):
             st["method"] += f" Escluse {len(bad)} partite in cui la fonte non contiene gli eventi di una delle due squadre."
         st.setdefault("hook", s2.HOOKS.get(st["id"], st["title"]))
+    Tv_poss = [r for r in Tv if r["n"] not in anom]
     dati = sp.build(T, Tv, G, SH, C, load("voti.csv"), load("elo.csv"), load("rete_passaggi.csv"), bad, anom)
     s2.TAGS.update(sp.TAGS)
-    pages = [(studies, s2.CALENDAR, "Studio", "uno studio nuovo"), (dati, sp.CALENDAR_DATI, "Il dato spiegato", "spieghiamo un dato")]
+    import allenatori as al
+    coaches = al.build(Tv_poss, Tv)
+    s2.TAGS.update(al.TAGS)
+    pages = [(studies, dict(enumerate(s2.CALENDAR, 1)), "Studio", "uno studio nuovo"),
+             (dati, dict(enumerate(sp.CALENDAR_DATI, 1)), "Il dato spiegato", "spieghiamo un dato"),
+             (coaches, al.CALENDAR_ALL, "Allenatori", "un allenatore ogni due settimane")]
     weeks = {}
     for items, calendar, label, serie in pages:
-        week = {sid: i for i, sid in enumerate(calendar, 1)}
+        week = {sid: w for w, sid in calendar.items()}
         assert sorted(week) == sorted(s["id"] for s in items), f"calendario e contenuti non coincidono ({label})"
         by_week = {week[s["id"]]: s for s in items}
         for i, st in enumerate(items, 1):
             st["week"] = week[st["id"]]
-            st["tag"] = f"Studio {i} · {st['kicker']}" if label == "Studio" else "Il dato spiegato"
-            nxt = by_week.get(st["week"] + 1)
+            st["tag"] = f"Studio {i} · {st['kicker']}" if label == "Studio" else label
+            nxt = next((by_week[w] for w in sorted(by_week) if w > st["week"]), None)
             st["next"] = nxt["title"] if nxt else ""
             st["texts"] = s2.pack_texts(st, st["week"], st["next"] or "a presto", serie)
         weeks[label] = by_week
     num_of = {s["id"]: i for items, *_ in pages for i, s in enumerate(items, 1)}
-    cal_rows = [[f"Settimana {w}", f'<a href="studi.html#{weeks["Studio"][w]["id"]}">{num_of[weeks["Studio"][w]["id"]]}. {e(weeks["Studio"][w]["title"])}</a>',
-                 f'<a href="dati.html#{weeks["Il dato spiegato"][w]["id"]}">{e(weeks["Il dato spiegato"][w]["title"])}</a>'] for w in sorted(weeks["Studio"])]
-    cal = ('<details class="tview" open><summary>Piano editoriale: ogni settimana uno studio e un dato spiegato</summary><div class="scroll"><table>'
-           '<tr><th>Settimana</th><th>Studio</th><th>Il dato spiegato</th></tr>' +
+    link = lambda page, st: f'<a href="{page}#{st["id"]}">{e(st["title"])}</a>' if st else ""
+    cal_rows = [[f"Settimana {w}", f'{num_of[weeks["Studio"][w]["id"]]}. ' + link("studi.html", weeks["Studio"][w]),
+                 link("dati.html", weeks["Il dato spiegato"].get(w)), link("allenatori.html", weeks["Allenatori"].get(w))]
+                for w in sorted(weeks["Studio"])]
+    cal = ('<details class="tview" open><summary>Piano editoriale: ogni settimana uno studio e un dato spiegato, ogni due settimane un '
+           'allenatore</summary><div class="scroll"><table>'
+           '<tr><th>Settimana</th><th>Studio</th><th>Il dato spiegato</th><th>Allenatori</th></tr>' +
            "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in cal_rows) + "</table></div></details>")
     nav = ('<a href="index.html">Report partite</a> <a href="classifiche.html">Classifiche di tutti i tempi</a> '
-           '<a href="studi.html">Studi</a> <a href="dati.html">Il dato spiegato</a>')
+           '<a href="studi.html">Studi</a> <a href="dati.html">Il dato spiegato</a> <a href="allenatori.html">Allenatori</a>')
     pack = "Ogni contenuto ha il suo pack social: carosello di 5 slide (PNG e PDF) e testi pronti per LinkedIn, Instagram, X e TikTok."
     write_page(studies, "studi.html", "Delta Scout · Studi", f"Cosa dicono 3.961 partite: {len(studies)} studi",
                "Studi sul dataset StatsBomb Open Data: come è cambiato il calcio, le differenze tra maschile e femminile, squadre, fortuna, "
@@ -891,8 +900,13 @@ def main():
                "Cosa vogliono dire xG, PPDA, field tilt, xT e tutti gli altri numeri dei report Delta Scout. Per ogni metrica: definizione "
                "in parole semplici, come si legge, valori tipici e record presi dalle 3.961 partite del database, come è calcolata e i suoi "
                "limiti. " + pack, cal, "Ogni settimana spieghiamo un dato del calcio", nav, "Esporta tutte le schede")
-    print(f"{len(studies)} studi in studi.html, {len(dati)} schede in dati.html")
-    for s in studies + dati:
+    write_page(coaches, "allenatori.html", "Delta Scout · Allenatori", f"Allenatori: stile ed evoluzione in {len(coaches)} schede",
+               "Come gioca un allenatore, cosa si porta dietro quando cambia squadra e come cambia nel tempo: Guardiola, Mourinho, Wenger, "
+               "Luis Enrique, Emma Hayes, Montemurro, Valverde, Mancini, Roberto Martínez e i passaggi da squadre medie a grandi club. "
+               "Dati per periodo (allenatore + squadra + stagione), con mediane di confronto, metodo e limiti. " + pack,
+               cal, "Un allenatore analizzato ogni due settimane", nav, "Esporta tutte le schede")
+    print(f"{len(studies)} studi in studi.html, {len(dati)} schede in dati.html, {len(coaches)} schede in allenatori.html")
+    for s in studies + dati + coaches:
         print(f"- {s['title']}: {s['headline']}")
 
 

@@ -145,7 +145,7 @@ def brand_bar(nav=""):
             f'<span>Delta Scout</span></a>{nav}</nav>')
 
 
-INDEX_NAV = '<a href="classifiche.html">Classifiche di tutti i tempi</a> <a href="studi.html">Studi</a> <a href="dati.html">Il dato spiegato</a>'
+INDEX_NAV = '<a href="classifiche.html">Classifiche di tutti i tempi</a> <a href="studi.html">Studi</a> <a href="dati.html">Il dato spiegato</a> <a href="allenatori.html">Allenatori</a>'
 
 
 def footer():
@@ -1337,7 +1337,7 @@ def main():
     (out / "vendor").mkdir(exist_ok=True)
     for v in (HERE / "vendor").glob("*"):
         (out / "vendor" / v.name).write_bytes(v.read_bytes())
-    for page in ("classifiche.html", "studi.html", "dati.html"):
+    for page in ("classifiche.html", "studi.html", "dati.html", "allenatori.html"):
         if (HERE / page).exists():
             (out / page).write_bytes((HERE / page).read_bytes())
 

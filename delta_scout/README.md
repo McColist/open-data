@@ -148,8 +148,14 @@ partite note (Maradona 1986, finale 2022, finale di Champions 2012, Leicester 20
 social degli studi. Le partite con possesso anomalo nella fonte (durate di eventi fuori scala, 6 partite) sono escluse dagli
 studi e dalle schede sul possesso.
 
+**Allenatori.** `allenatori.html` (schede di `allenatori.py`): 11 schede sullo stile degli allenatori e la sua evoluzione.
+Unità di analisi: il «periodo» (allenatore + squadra + stagione con almeno 15 partite, o nazionale con almeno 5). Studio
+generale «La firma dell'allenatore» (quali metriche restano simili quando un allenatore cambia squadra: il PPDA sì, i
+passaggi no), «Quando l'allenatore arriva in una grande squadra» (Valverde, Setién, Koeman, Galtier, Pochettino, Carla Ward)
+e schede su Guardiola, Mourinho, Montemurro, Wenger, Luis Enrique, Emma Hayes, Valverde, Mancini, Roberto Martínez.
+
 **Uno studio e un dato a settimana.** Il piano editoriale (`CALENDAR` in `studi2.py` e `CALENDAR_DATI` in `spiegati.py`, settimane 1–22)
-abbina ogni settimana uno studio e un dato spiegato; per ogni contenuto c'è un **pack** scaricabile in 4:5, 1:1, 9:16 o 16:9: zip con 5 slide PNG (copertina, grafico, 3 cose da sapere, metodo
+abbina ogni settimana uno studio e un dato spiegato, e ogni due settimane un allenatore (`CALENDAR_ALL` in `allenatori.py`); per ogni contenuto c'è un **pack** scaricabile in 4:5, 1:1, 9:16 o 16:9: zip con 5 slide PNG (copertina, grafico, 3 cose da sapere, metodo
 e limiti, chiusura con lo studio della settimana dopo), il carosello in PDF per LinkedIn e `testi.txt` con i testi pronti
 per LinkedIn, Instagram, thread di X (tweet sotto i 280 caratteri), copione TikTok/Reels di 30 secondi, testo alternativo
 e hashtag. Gli stessi testi sono nella pagina, sotto ogni studio, con il pulsante «Copia i testi».
