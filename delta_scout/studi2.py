@@ -535,7 +535,7 @@ def maradona_study(T, G):
               "quello."],
         method="Le 3 partite dell'Argentina al Mondiale 1986 presenti negli Open Data StatsBomb (quarti con l'Inghilterra, semifinale con il "
                "Belgio, finale con la Germania Ovest). Quota = valore di Maradona diviso il totale di tutti i giocatori argentini. In tabella "
-               "tutte le 12 partite di Maradona nel dataset (Argentina U20, Boca Juniors, Barcellona, Napoli, Argentina).",
+               f"tutte le {len(M)} partite di Maradona nel dataset (Argentina U20, Boca Juniors, Barcellona, Napoli, Argentina).",
         caveat="Tre partite sono un campione piccolo e scelto (le più importanti del torneo). Partite ricostruite da filmati, metriche "
                "calcolate con modelli moderni.",
         table=tab)
